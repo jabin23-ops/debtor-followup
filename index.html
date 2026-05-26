@@ -488,5 +488,249 @@ document.querySelectorAll('[data-f]').forEach(b=>{
 });
 render();
 </script>
+<!-- ═══════════════════════════════════════════════════════════════════════
+     FOLLOW-UP OVERLAY — operator picker, contact log, log-outcome button,
+     Today's 5 filter. Talks to Apps Script bridge to read/write contact log.
+     ═══════════════════════════════════════════════════════════════════════ -->
+<style>
+  .fu-modal{position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px}
+  .fu-modal-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;max-width:380px;width:100%;max-height:90vh;overflow-y:auto}
+  .fu-modal h3{font-size:15px;margin-bottom:4px}
+  .fu-modal p.sub{color:var(--muted);font-size:11px;margin-bottom:14px}
+  .fu-btn-primary{padding:12px;background:var(--current);color:#0a1d33;border:0;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit}
+  .fu-btn-primary:disabled{opacity:0.4;cursor:not-allowed}
+  .fu-btn-secondary{padding:12px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit}
+  .fu-op-pick{padding:14px;color:#fff;border:0;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;flex:1}
+  .fu-op-pick.j{background:var(--azaiba)} .fu-op-pick.d{background:var(--national)}
+  .fu-out{padding:10px 12px;background:var(--navy);border:1px solid var(--border);color:var(--text);border-radius:8px;font-size:13px;text-align:left;cursor:pointer;font-family:inherit;width:100%}
+  .fu-out.selected{border-color:var(--current);background:var(--current-bg);color:var(--current)}
+  .fu-input{width:100%;padding:9px;background:var(--navy);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit}
+  .fu-last{font-size:10px;color:var(--muted);margin-top:5px;padding:4px 8px;background:rgba(255,255,255,0.04);border-radius:6px;display:inline-block}
+  .fu-last.broken{color:var(--overdue);background:var(--overdue-bg)}
+  .fu-op-chip{font-size:10px;color:var(--muted);background:rgba(255,255,255,0.06);padding:3px 8px;border-radius:12px;cursor:pointer}
+  .pill.t5{border-color:var(--current);color:var(--current)}
+  .pill.active.t5{background:var(--current);color:#0a1d33;border-color:var(--current)}
+</style>
+<script>
+window.FU = (function(){
+  const BRIDGE = 'https://script.google.com/macros/s/AKfycbyHMDmavU9hNOHZBEk_pEHqN8U7wSZx1o2ggQ3ejUTgXQD5bgluXYaDyaij7hq9IyMVRQ/exec';
+  const LS_OP = 'fu_operator_v1';
+  let log = [];
+  let op = localStorage.getItem(LS_OP);
+  let t5Active = false;
+  let t5Set = null;
+
+  function pickOp(){
+    if(op) return;
+    const m = document.createElement('div');
+    m.className = 'fu-modal'; m.id = 'fu-op-modal';
+    m.innerHTML = `
+      <div class="fu-modal-card" style="text-align:center">
+        <h3>Who's using this?</h3>
+        <p class="sub">Saved on this device — tap the chip in the header to switch.</p>
+        <div style="display:flex;gap:10px;margin-top:10px">
+          <button class="fu-op-pick j" onclick="FU.setOp('Jabin')">I'm Jabin</button>
+          <button class="fu-op-pick d" onclick="FU.setOp('Dad')">I'm Dad</button>
+        </div>
+      </div>`;
+    document.body.appendChild(m);
+  }
+  function setOp(name){
+    op = name; localStorage.setItem(LS_OP, name);
+    const m = document.getElementById('fu-op-modal'); if(m) m.remove();
+    renderOpChip();
+  }
+  function changeOp(){
+    if(!confirm('Switch operator? (Currently: '+op+')')) return;
+    localStorage.removeItem(LS_OP); op = null; pickOp();
+  }
+  function renderOpChip(){
+    let c = document.getElementById('fu-op-chip');
+    if(!c){
+      const top = document.querySelector('.hdr-top'); if(!top) return;
+      c = document.createElement('div'); c.id = 'fu-op-chip'; c.className = 'fu-op-chip'; c.onclick = changeOp;
+      top.appendChild(c);
+    }
+    c.textContent = '👤 ' + (op || '?');
+  }
+
+  async function fetchLog(){
+    try{
+      const res = await fetch(BRIDGE + '?_=' + Date.now());
+      const j = await res.json();
+      if(j.ok && Array.isArray(j.log)) log = j.log;
+    }catch(e){ console.warn('Bridge fetch failed', e); }
+    decorate();
+  }
+
+  function lastFor(name){
+    if(!name) return null;
+    const n = name.toLowerCase().trim();
+    const rows = log.filter(e => (e.customer_name||'').toLowerCase().trim() === n)
+                    .sort((a,b) => (b.timestamp_iso||'').localeCompare(a.timestamp_iso||''));
+    return rows[0] || null;
+  }
+
+  function computeT5(){
+    const today = new Date();
+    const eligible = (window.D||[]).filter(d => {
+      if(d.sg !== 'NORMAL') return false;
+      if(d.cp_ov <= 0) return false;
+      const l = lastFor(d.n);
+      if(l && l.outcome === 'paid') return false;
+      return true;
+    });
+    const scored = eligible.map(d => {
+      const l = lastFor(d.n);
+      let score = d.cp_ov * 1.0;
+      if(l && l.promise_date){
+        const pd = new Date(l.promise_date);
+        if(!isNaN(pd) && pd < today && l.outcome !== 'paid') score *= 2.5;
+      }
+      if(l && l.timestamp_iso){
+        const ago = (today - new Date(l.timestamp_iso)) / (1000*60*60*24);
+        if(ago < 5) score *= 0.3;
+      }
+      if(d.cp_ov > 1000) score *= 1.5;
+      return { name: d.n, score };
+    });
+    scored.sort((a,b) => b.score - a.score);
+    return new Set(scored.slice(0,5).map(x => x.name));
+  }
+
+  function toggleT5(btn){
+    t5Active = !t5Active;
+    if(t5Active){ t5Set = computeT5(); btn.classList.add('active'); }
+    else { t5Set = null; btn.classList.remove('active'); }
+    if(window.render) window.render();
+    setTimeout(applyT5Filter, 50);
+  }
+  function applyT5Filter(){
+    if(!t5Active || !t5Set) return;
+    document.querySelectorAll('.card').forEach(card => {
+      const nameEl = card.querySelector('.card-name'); if(!nameEl) return;
+      if(!t5Set.has(nameEl.textContent.trim())) card.style.display = 'none';
+    });
+  }
+  function addT5Pill(){
+    if(document.getElementById('fu-t5-pill')) return;
+    const firstRow = document.querySelector('.filter-row'); if(!firstRow) return;
+    const b = document.createElement('button');
+    b.id = 'fu-t5-pill'; b.className = 'pill t5'; b.textContent = "⭐ Today's 5";
+    b.onclick = () => toggleT5(b);
+    firstRow.insertBefore(b, firstRow.firstChild.nextSibling);
+  }
+
+  function decorate(){
+    document.querySelectorAll('.card').forEach(card => {
+      const nameEl = card.querySelector('.card-name'); if(!nameEl) return;
+      const name = nameEl.textContent.trim();
+      const l = lastFor(name);
+      const left = card.querySelector('.card-left');
+      const oldDec = left.querySelector('.fu-last'); if(oldDec) oldDec.remove();
+      if(l){
+        const when = (l.timestamp_iso || '').slice(0,10);
+        const who = l.operator || '?';
+        const out = (l.outcome || l.action || 'contacted').replace(/_/g,' ');
+        let broken = false; let promiseText = '';
+        if(l.promise_date){
+          const pd = new Date(l.promise_date);
+          if(!isNaN(pd) && pd < new Date() && l.outcome !== 'paid'){
+            broken = true; promiseText = ` · ⚠ promised ${l.promise_date} — didn't`;
+          } else if(!isNaN(pd)){ promiseText = ` · promised ${l.promise_date}`; }
+        }
+        const div = document.createElement('div');
+        div.className = 'fu-last' + (broken ? ' broken' : '');
+        div.textContent = `📋 ${when} · ${who} · ${out}${promiseText}`;
+        left.appendChild(div);
+      }
+      const detail = card.querySelector('.card-detail'); if(!detail) return;
+      let actionBtns = detail.querySelector('.action-btns');
+      if(!actionBtns){
+        actionBtns = document.createElement('div'); actionBtns.className = 'action-btns';
+        detail.appendChild(actionBtns);
+      }
+      if(!actionBtns.querySelector('.fu-log-btn')){
+        const lb = document.createElement('button');
+        lb.className = 'stmt-btn fu-log-btn'; lb.textContent = '📝 Log outcome';
+        lb.onclick = (ev) => { ev.stopPropagation(); openLog(name); };
+        actionBtns.appendChild(lb);
+      }
+    });
+    if(t5Active) applyT5Filter();
+  }
+
+  let _ls = { action:'', outcome:'' };
+  function openLog(name){
+    if(!op){ pickOp(); return; }
+    _ls = { action:'', outcome:'' };
+    const m = document.createElement('div');
+    m.className = 'fu-modal'; m.id = 'fu-log-modal';
+    m.innerHTML = `
+      <div class="fu-modal-card">
+        <h3>Log contact — ${esc(name)}</h3>
+        <p class="sub">Logging as <b>${esc(op)}</b></p>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <button class="fu-out" data-a="reminder_sent" data-o="sent">✉️ Sent WhatsApp/Email reminder</button>
+          <button class="fu-out" data-a="called" data-o="no_answer">📵 Called — no answer</button>
+          <button class="fu-out" data-a="called" data-o="will_pay">📅 Called — promised to pay</button>
+          <button class="fu-out" data-a="called" data-o="disputed">⚠ Disputed invoice</button>
+          <button class="fu-out" data-a="payment_received" data-o="paid">💵 Paid — please update Tally</button>
+        </div>
+        <div id="fu-promise-row" style="display:none;margin-top:12px">
+          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Promised pay date</label>
+          <input type="date" id="fu-promise" class="fu-input">
+        </div>
+        <textarea id="fu-notes" class="fu-input" placeholder="Notes (optional)" style="margin-top:10px;min-height:54px;resize:vertical"></textarea>
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <button class="fu-btn-secondary" style="flex:1" onclick="FU.closeLog()">Cancel</button>
+          <button class="fu-btn-primary" style="flex:1" id="fu-save" disabled>Save</button>
+        </div>
+      </div>`;
+    document.body.appendChild(m);
+    m.querySelectorAll('.fu-out').forEach(b => {
+      b.addEventListener('click', () => {
+        m.querySelectorAll('.fu-out').forEach(x => x.classList.remove('selected'));
+        b.classList.add('selected');
+        _ls.action = b.dataset.a; _ls.outcome = b.dataset.o;
+        document.getElementById('fu-promise-row').style.display = (b.dataset.o === 'will_pay') ? 'block' : 'none';
+        const sv = document.getElementById('fu-save'); sv.disabled = false;
+      });
+    });
+    document.getElementById('fu-save').onclick = () => saveLog(name);
+  }
+  function closeLog(){ const m = document.getElementById('fu-log-modal'); if(m) m.remove(); }
+
+  async function saveLog(name){
+    const sv = document.getElementById('fu-save'); if(!sv || sv.disabled) return;
+    sv.textContent = 'Saving…'; sv.disabled = true;
+    const entry = {
+      timestamp_iso: new Date().toISOString(),
+      customer_name: name, operator: op, channel: '',
+      action: _ls.action, outcome: _ls.outcome,
+      promise_date: document.getElementById('fu-promise') ? document.getElementById('fu-promise').value : '',
+      amount_omr: '',
+      notes: document.getElementById('fu-notes') ? document.getElementById('fu-notes').value : ''
+    };
+    try{
+      await fetch(BRIDGE, { method:'POST', headers:{'Content-Type':'text/plain;charset=UTF-8'}, body: JSON.stringify(entry) });
+      log.unshift(entry); closeLog(); decorate();
+    }catch(e){ sv.textContent = 'Error — retry'; sv.disabled = false; }
+  }
+
+  function esc(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  function boot(){
+    pickOp(); renderOpChip(); addT5Pill(); fetchLog();
+    const root = document.getElementById('root');
+    if(root){ new MutationObserver(() => decorate()).observe(root, { childList: true, subtree: false }); }
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+
+  return { setOp, changeOp, openLog, closeLog, saveLog };
+})();
+</script>
+
 </body>
 </html>
