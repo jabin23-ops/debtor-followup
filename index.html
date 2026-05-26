@@ -573,7 +573,7 @@ window.FU = (function(){
 
   function computeT5(){
     const today = new Date();
-    const eligible = (window.D||[]).filter(d => {
+    const eligible = (typeof D !== 'undefined' ? D : []).filter(d => {
       if(d.sg !== 'NORMAL') return false;
       if(d.cp_ov <= 0) return false;
       const l = lastFor(d.n);
