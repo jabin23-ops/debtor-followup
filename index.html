@@ -104,7 +104,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 /* DETAIL */
 .card-detail{display:none;border-top:1px solid var(--border);padding:0 13px 12px;background:var(--soft)}
 .card.open .card-detail{display:block}
-.det-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:10px 0}
+.det-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0}
 .det-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0}
 .det-box{background:var(--card);border-radius:8px;padding:8px 8px;text-align:center;border:1px solid var(--border)}
 .det-box .dl{font-size:9px;color:var(--muted);margin-bottom:2px;text-transform:uppercase;letter-spacing:0.4px}
@@ -252,7 +252,7 @@ const CO = {"AZAIBA": {"name": "GLOBAL ORYX MARKETING AND TRAD LLC", "cr": "CR N
 const TODAY_STR = "31 May 2026";
 window.D = D; window.CO = CO; window.TODAY_STR = TODAY_STR;
 
-const fK=v=>v<=0?'—':'OMR '+(v>=1000?(v/1000).toFixed(1)+'K':v.toFixed(0));
+const fK=v=>v<=0?'—':'OMR '+v.toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g,',');
 const fF=v=>'OMR '+v.toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g,',');
 const fN=v=>v.toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g,',');
 
@@ -308,9 +308,8 @@ function render(){
         </div>
         <div class="card-detail">
           <div class="det-grid">
-            <div class="det-box"><div class="dl">Overdue</div><div class="dv ov">${d.ov>0?fK(d.ov):'—'}</div></div>
-            <div class="det-box"><div class="dl">Due</div><div class="dv du">${d.du>0?fK(d.du):'—'}</div></div>
-            <div class="det-box"><div class="dl">Not yet due</div><div class="dv co">${Math.max(0,d.net-d.ov-d.du)>0?fK(Math.max(0,d.net-d.ov-d.du)):'—'}</div></div>
+            <div class="det-box"><div class="dl">Overdue</div><div class="dv ov">${d.cp_ov>0?fK(d.cp_ov):'—'}</div></div>
+            <div class="det-box"><div class="dl">Not yet due</div><div class="dv co">${d.cp_not_ov>0?fK(d.cp_not_ov):'—'}</div></div>
           </div>
           ${d.p>0?`<div class="det-grid-2">
             <div class="det-box"><div class="dl">Total Billed</div><div class="dv">${fK(d.t)}</div></div>
