@@ -380,46 +380,27 @@ function showToast(msg,dur=2800){
 // ── EMAIL CONTACT ─────────────────────────────────────────────────────────────
 function emailContact(evt,cardId,ci){
   evt.stopPropagation();
-  const v=vis();const sts=['OVERDUE','DUE','COMING','CURRENT','BAD DEBT','COURT CASE'];
-  const stMap={};
-  sts.forEach(s=>{v.filter(d=>d.s===s).forEach((d,i)=>{stMap[`c${s.replace(/[\s]/g,'')}_${i}`]=d;});});
-  const d=stMap[cardId]; if(!d)return;
-  const contacts=d.contacts||[];
-  const c=contacts[ci]; if(!c||!c.email)return;
-  const email=c.email;
-  const co=CO[d.co]||CO['NATIONAL'];
-  const subject=`Account Statement — ${d.n} | ${co.name}`;
-  const body=`Dear ${c.person},\n\nPlease find attached your account statement as of ${TODAY_STR}.\n\nNet Outstanding: OMR ${d.net.toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g,',')}\n\nKindly arrange payment at your earliest convenience.\n\nRegards,\nAccounts Team`;
-  // Copy email to clipboard
-  navigator.clipboard.writeText(email).then(()=>showToast(`📋 ${email} copied — paste in To field`)).catch(()=>showToast(`📋 Copy: ${email}`));
-  // Generate PDF + share
-  const btn=evt.currentTarget; btn.disabled=true; btn.textContent='⏳';
-  setTimeout(()=>{
-    try{
-      const pdf=buildPDF(d);
-      const fname=`Statement_${d.n.replace(/[^a-zA-Z0-9]/g,'_').replace(/_+/g,'_')}_${d.co}.pdf`;
-      const blob=pdf.output('blob');
-      const file=new File([blob],fname,{type:'application/pdf'});
-      if(navigator.canShare&&navigator.canShare({files:[file]})){
-        navigator.share({files:[file],title:subject,text:body}).catch(()=>pdf.save(fname));
-      }else{
-        pdf.save(fname);
-        window.open(`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,'_blank');
-      }
-    }catch(e){console.error(e);alert('Error: '+e.message);}
-    btn.disabled=false; btn.textContent='📧 Email';
-  },50);
+  previewStmt(evt,cardId,ci);
 }
 
 // ── STATEMENT PREVIEW ────────────────────────────────────────────────────────
-let _pvD=null;
-function previewStmt(evt,cardId){
-  evt.stopPropagation();
+let _pvD=null, _pvContact=null;
+function previewStmt(evt,cardId,ci){
+  if(evt) evt.stopPropagation();
   const v=vis();const sts=['OVERDUE','DUE','COMING','CURRENT','BAD DEBT','COURT CASE'];
   const stMap={};
   sts.forEach(s=>{v.filter(d=>d.s===s).forEach((d,i)=>{stMap[`c${s.replace(/[\s]/g,'')}_${i}`]=d;});});
   const d=stMap[cardId]; if(!d)return;
   _pvD=d;
+  _pvContact=(ci!=null&&d.contacts&&d.contacts[ci])?d.contacts[ci]:null;
+  // Update footer email button
+  const eb=document.getElementById('previewEmailBtn');
+  if(_pvContact&&_pvContact.email){
+    eb.textContent=`📧 Email ${_pvContact.person}`;
+    eb.style.display='';
+  } else {
+    eb.style.display='none';
+  }
   const co=CO[d.co]||CO['NATIONAL'];
   const fmt=v=>'OMR '+v.toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g,',');
   const kpis=[
@@ -452,7 +433,7 @@ function previewStmt(evt,cardId){
   const ov=document.getElementById('previewOv');
   ov.classList.add('open'); ov.scrollTop=0;
 }
-function closePreview(){document.getElementById('previewOv').classList.remove('open');_pvD=null;}
+function closePreview(){document.getElementById('previewOv').classList.remove('open');_pvD=null;_pvContact=null;}
 function shareFromPreview(){
   const d=_pvD; if(!d)return;
   // Get selected invoices
@@ -472,6 +453,48 @@ function shareFromPreview(){
       }else{pdf.save(fname);}
     }catch(e){console.error(e);alert('PDF error: '+e.message);}
     btn.disabled=false; btn.textContent='📤 Share PDF';
+  },50);
+}
+function emailFromPreview(){
+  const d=_pvD; const c=_pvContact;
+  if(!d||!c||!c.email)return;
+  const email=c.email;
+  const co=CO[d.co]||CO['NATIONAL'];
+  const odDue=(d.ov+d.du).toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  const subject=`Account Statement — ${d.n} | ${co.name}`;
+  const body=`Dear ${c.person},
+
+We hope this message finds you well.
+
+Please find attached your latest account statement as of ${TODAY_STR}.
+
+Amount Overdue & Due: OMR ${odDue}
+
+We kindly request you to arrange payment at your earliest convenience. If you have any queries regarding the statement, please do not hesitate to contact us.
+
+Thank you for your continued business.
+
+Warm regards,
+Accounts Team`;
+  navigator.clipboard.writeText(email).then(()=>showToast(`📋 ${email} copied — paste in To field`)).catch(()=>showToast(`📋 Copy: ${email}`));
+  const btn=document.getElementById('previewEmailBtn');
+  btn.disabled=true; btn.textContent='⏳ Generating...';
+  setTimeout(()=>{
+    try{
+      const checked=[...document.querySelectorAll('.inv-chk:checked')].map(el=>parseInt(el.dataset.idx));
+      const filteredD={...d,inv:d.inv.filter((_,i)=>checked.includes(i))};
+      const pdf=buildPDF(filteredD);
+      const fname=`Statement_${d.n.replace(/[^a-zA-Z0-9]/g,'_').replace(/_+/g,'_')}_${d.co}.pdf`;
+      const blob=pdf.output('blob');
+      const file=new File([blob],fname,{type:'application/pdf'});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){
+        navigator.share({files:[file],title:subject,text:body}).catch(()=>pdf.save(fname));
+      }else{
+        pdf.save(fname);
+        window.open(`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,'_blank');
+      }
+    }catch(e){console.error(e);alert('Error: '+e.message);}
+    btn.disabled=false; btn.textContent=`📧 Email ${c.person}`;
   },50);
 }
 
@@ -982,6 +1005,7 @@ window.FU = (function(){
     <div class="preview-body" id="previewBody"></div>
     <div class="preview-actions">
       <button class="preview-cancel" onclick="closePreview()">Close</button>
+      <button class="preview-share" id="previewEmailBtn" onclick="emailFromPreview()" style="display:none">📧 Email</button>
       <button class="preview-share" id="previewShareBtn" onclick="shareFromPreview()">📤 Share PDF</button>
     </div>
   </div>
