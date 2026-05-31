@@ -459,7 +459,7 @@ function emailFromPreview(){
   if(!d||!c||!c.email)return;
   const email=c.email;
   const co=CO[d.co]||CO['NATIONAL'];
-  const odDue=(d.ov+d.du).toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  const odDue=d.cp_ov.toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g,',');
   const subject=`Account Statement — ${d.n} | ${co.name}`;
   const body=`Dear ${c.person},
 
