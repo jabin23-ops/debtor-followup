@@ -899,7 +899,7 @@ window.FU = (function(){
         if(broken) cls += ' broken';
         else if(isStale) cls += ' stale-tag';
         div.className = cls;
-        div.textContent = `📋 ${when} · ${who} · ${out}${promiseText}`;
+        div.textContent = `Last contacted: ${when} · ${who} · ${out}${promiseText}`;
         left.appendChild(div);
       } else {
         // never touched — show stale tag if customer would be eligible
@@ -922,6 +922,12 @@ window.FU = (function(){
         lb.className = 'stmt-btn fu-log-btn'; lb.textContent = '📝 Log outcome';
         lb.onclick = (ev) => { ev.stopPropagation(); openLog(name); };
         actionBtns.appendChild(lb);
+      }
+      if(!actionBtns.querySelector('.fu-hist-btn')){
+        const hb = document.createElement('button');
+        hb.className = 'stmt-btn fu-hist-btn'; hb.textContent = '📋 History';
+        hb.onclick = (ev) => { ev.stopPropagation(); openHistory(name); };
+        actionBtns.appendChild(hb);
       }
     });
     if(t5Active || staleActive) applyFilters();
@@ -1003,7 +1009,36 @@ window.FU = (function(){
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 
-  return { setOp, changeOp, openLog, closeLog, saveLog, toggleT5, toggleStale, exitViews };
+  function openHistory(name){
+    const entries=log.filter(e=>(e.customer_name||'').toLowerCase().trim()===name.toLowerCase().trim())
+                     .sort((a,b)=>(b.timestamp_iso||'').localeCompare(a.timestamp_iso||''));
+    document.getElementById('historyTitle').textContent=name;
+    const body=document.getElementById('historyBody');
+    if(!entries.length){
+      body.innerHTML='<div style="text-align:center;padding:32px 16px;color:var(--muted);font-size:13px">No log entries yet for this account.</div>';
+    } else {
+      body.innerHTML=entries.map(e=>{
+        const when=(e.timestamp_iso||'').slice(0,10);
+        const time=(e.timestamp_iso||'').slice(11,16)||'';
+        const who=e.operator||'?';
+        const out=(e.outcome||e.action||'contacted').replace(/_/g,' ');
+        const notes=e.notes||e.comment||'';
+        const promise=e.promise_date||'';
+        const broken=promise&&new Date(promise)<new Date()&&e.outcome!=='paid';
+        return `<div style="padding:12px 0;border-bottom:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+            <span style="font-size:12px;font-weight:700;color:var(--text)">${when}${time?' · '+time:''}</span>
+            <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:var(--current-bg);color:var(--current)">${who}</span>
+          </div>
+          <div style="font-size:12px;color:var(--text);margin-bottom:${(notes||promise)?'6px':'0'}">${out}${promise?` <span style="margin-left:6px;font-size:10px;padding:1px 7px;border-radius:20px;background:${broken?'var(--overdue-bg)':'var(--coming-bg)'};color:${broken?'var(--overdue)':'var(--coming)'}">⏰ promised ${promise}${broken?' — overdue':''}</span>`:''}</div>
+          ${notes?`<div style="font-size:12px;color:var(--muted);background:var(--soft);border-radius:8px;padding:8px 10px;line-height:1.5">${notes}</div>`:''}
+        </div>`;
+      }).join('');
+    }
+    document.getElementById('historyOv').classList.add('open');
+  }
+
+  return { setOp, changeOp, openLog, closeLog, saveLog, toggleT5, toggleStale, exitViews, openHistory };
 })();
 </script>
 
@@ -1023,5 +1058,18 @@ window.FU = (function(){
   </div>
 </div>
 
+<div class="preview-overlay" id="historyOv">
+  <div class="preview-sheet">
+    <div class="preview-hdr">
+      <div class="preview-hdr-title" id="historyTitle" style="font-size:13px;max-width:270px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+      <button class="preview-close" onclick="closeHistory()">✕</button>
+    </div>
+    <div class="preview-body" id="historyBody"></div>
+    <div class="preview-actions">
+      <button class="preview-cancel" onclick="closeHistory()">Close</button>
+    </div>
+  </div>
+</div>
+<script>function closeHistory(){document.getElementById('historyOv').classList.remove('open');}</script>
 </body>
 </html>
