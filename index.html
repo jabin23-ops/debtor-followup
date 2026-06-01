@@ -353,17 +353,22 @@ function render(){
   if(!h)h='<div class="empty">No accounts match the selected filters</div>';
   root.innerHTML=h;
 
-  const tot=v.reduce((s,d)=>s+d.t,0),ov=v.reduce((s,d)=>s+d.cp_ov,0),
-        du=v.reduce((s,d)=>s+d.du,0),cm=v.reduce((s,d)=>s+d.cm,0),
-        nt=v.reduce((s,d)=>s+d.net,0);
+  updateKPIs(v);
+}
+window.render = render;
+
+function updateKPIs(arr){
+  const tot=arr.reduce((s,d)=>s+d.t,0),ov=arr.reduce((s,d)=>s+d.cp_ov,0),
+        du=arr.reduce((s,d)=>s+d.du,0),cm=arr.reduce((s,d)=>s+d.cm,0),
+        nt=arr.reduce((s,d)=>s+d.net,0);
   document.getElementById('kt').textContent=fK(tot);
   document.getElementById('ko').textContent=fK(ov);
   document.getElementById('kd').textContent=fK(du);
   document.getElementById('kc').textContent=fK(cm);
-  document.getElementById('sc').textContent=v.length+' accounts';
+  document.getElementById('sc').textContent=arr.length+' accounts';
   document.getElementById('nt').textContent=fK(nt);
 }
-window.render = render;
+window.updateKPIs = updateKPIs;
 
 function tog(id){document.getElementById(id).classList.toggle('open');}
 
@@ -859,6 +864,8 @@ window.FU = (function(){
         if(prev && prev.classList.contains('sec-hdr')) prev.style.display = 'none';
       }
     });
+    // update KPI cards to reflect only the visible (T5/Stale) subset
+    if(window.updateKPIs) window.updateKPIs(vis().filter(d => activeSet.has(d.n)));
   }
 
   function decorate(){
