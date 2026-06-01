@@ -1088,12 +1088,15 @@ window.FU = (function(){
   function renderPDC(){
     const panel = document.getElementById('pdc-panel');
     const today = new Date(); today.setHours(0,0,0,0);
-    let entries = [];
-    (window.D||[]).forEach(d => {
-      (d.pdc||[]).forEach(p => {
-        entries.push({cheque_date:p.cheque_date, cheque:p.cheque, amount:p.amount||0,
-                      inv_refs:p.inv_refs, debtor:d.n, co:d.co,
-                      dateObj:parseChequeDate(p.cheque_date)});
+    const MONS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const fK=v=>'OMR '+v.toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+    const fA=v=>v.toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+    let entries=[];
+    (window.D||[]).forEach(d=>{
+      (d.pdc||[]).forEach(p=>{
+        const dObj=parseChequeDate(p.cheque_date);
+        entries.push({cheque_date:p.cheque_date,cheque:p.cheque,amount:p.amount||0,
+          inv_refs:p.inv_refs||'',debtor:d.n,co:d.co,dateObj:dObj,isPast:dObj&&dObj<today});
       });
     });
     entries.sort((a,b)=>{
@@ -1101,49 +1104,75 @@ window.FU = (function(){
       if(!a.dateObj)return 1; if(!b.dateObj)return -1;
       return a.dateObj-b.dateObj;
     });
-    const total = entries.reduce((s,e)=>s+e.amount,0);
-    const fK = v=>'OMR '+v.toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g,',');
     if(!entries.length){
       panel.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)">No PDC cheques on hand</div>';
       return;
     }
-    const hasPast = entries.some(e=>e.dateObj&&e.dateObj<today);
-    const rows = entries.map(e=>{
-      const isPast = e.dateObj&&e.dateObj<today;
-      const rs = isPast?'background:rgba(184,134,11,0.08)':'';
-      const as = isPast?'color:var(--coming);font-weight:700':'font-weight:700';
-      return `<tr style="${rs}">
-        <td style="padding:7px 4px;border-bottom:1px solid var(--border)">${isPast?'⚠ ':''}${e.cheque_date||'—'}</td>
-        <td style="padding:7px 4px;border-bottom:1px solid var(--border);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">${e.debtor}</td>
-        <td style="padding:7px 4px;border-bottom:1px solid var(--border)"><span class="co-${e.co}" style="font-size:9px;padding:2px 5px">${e.co}</span></td>
-        <td style="padding:7px 4px;border-bottom:1px solid var(--border);color:var(--muted);font-size:11px">${e.cheque||'—'}</td>
-        <td style="padding:7px 4px;border-bottom:1px solid var(--border);text-align:right;${as}">${fK(e.amount)}</td>
-      </tr>`;
-    }).join('');
-    panel.innerHTML = `
-      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:10px">
-        ${entries.length} cheque${entries.length!==1?'s':''} on hand
+    const total=entries.reduce((s,e)=>s+e.amount,0);
+    const hasPast=entries.some(e=>e.isPast);
+    const debtors=new Set(entries.map(e=>e.debtor)).size;
+    // Group by year-month key
+    const grpMap={}, grpOrder=[];
+    entries.forEach(e=>{
+      const key=e.dateObj?`${e.dateObj.getFullYear()}-${e.dateObj.getMonth()}`:`unk`;
+      const lbl=e.dateObj?`${MONS[e.dateObj.getMonth()]} ${e.dateObj.getFullYear()}`:`Unknown`;
+      if(!grpMap[key]){grpMap[key]={lbl,rows:[],tot:0};grpOrder.push(key);}
+      grpMap[key].rows.push(e); grpMap[key].tot+=e.amount;
+    });
+    let h='';
+    // Summary bar
+    h+=`<div style="background:var(--card);border-bottom:1px solid var(--border);padding:13px 16px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.7px;color:var(--muted);font-weight:600;margin-bottom:2px">PDC on hand</div>
+        <div style="font-size:17px;font-weight:700;color:var(--text)">${fK(total)}</div>
       </div>
-      <table style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead>
-          <tr style="border-bottom:2px solid var(--border);color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:0.5px">
-            <th style="text-align:left;padding:5px 4px">Date</th>
-            <th style="text-align:left;padding:5px 4px">Debtor</th>
-            <th style="text-align:left;padding:5px 4px">Co.</th>
-            <th style="text-align:left;padding:5px 4px">Cheque</th>
-            <th style="text-align:right;padding:5px 4px">Amount</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-        <tfoot>
-          <tr style="border-top:2px solid var(--border)">
-            <td colspan="4" style="padding:9px 4px;color:var(--muted);font-size:11px;font-weight:600">Total PDC on hand</td>
-            <td style="text-align:right;padding:9px 4px;color:var(--pdc);font-size:14px;font-weight:700">${fK(total)}</td>
-          </tr>
-        </tfoot>
-      </table>
-      ${hasPast?'<div style="margin-top:12px;font-size:11px;color:var(--coming);background:rgba(184,134,11,0.08);border-radius:8px;padding:9px 11px;line-height:1.5">⚠ Highlighted rows have passed their cheque date — confirm if these have cleared the bank.</div>':''}
-    `;
+      <div style="text-align:right">
+        <div style="font-size:12px;color:var(--muted)">${entries.length} cheque${entries.length!==1?'s':''}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">${debtors} debtor${debtors!==1?'s':''} · ${grpOrder.length} month${grpOrder.length!==1?'s':''}</div>
+      </div>
+    </div>`;
+    // Past banner
+    if(hasPast){
+      const pc=entries.filter(e=>e.isPast).length;
+      h+=`<div style="background:#FFF8EB;border-bottom:1px solid #F5D98C;padding:9px 16px;font-size:12px;color:#92650A;font-weight:500">⚠ ${pc} cheque${pc!==1?'s':''} past date — confirm if cleared</div>`;
+    }
+    // Month groups
+    grpOrder.forEach(key=>{
+      const g=grpMap[key];
+      const gPast=g.rows.every(e=>e.isPast);
+      h+=`<div>
+        <div style="padding:7px 16px 6px;display:flex;justify-content:space-between;align-items:baseline;background:${gPast?'#FFF4DC':'var(--soft)'};border-top:1px solid ${gPast?'#F5D98C':'var(--border)'};border-bottom:1px solid ${gPast?'#F5D98C':'var(--border)'}">
+          <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:${gPast?'#92650A':'var(--muted)'}">${g.lbl}${gPast?' · overdue':''}</span>
+          <span style="font-size:11px;font-weight:600;color:${gPast?'#92650A':'var(--current)'}">${fK(g.tot)}</span>
+        </div>`;
+      g.rows.forEach(e=>{
+        const day=e.dateObj?String(e.dateObj.getDate()).padStart(2,'0'):'?';
+        const mon=e.dateObj?MONS[e.dateObj.getMonth()]:'?';
+        const inv=e.inv_refs&&e.inv_refs!=='NOT,SUPPLIED'?` · inv: ${e.inv_refs}`:'';
+        h+=`<div style="background:${e.isPast?'#FFFBF0':'var(--card)'};border-bottom:0.5px solid var(--border);padding:11px 16px;display:flex;align-items:flex-start;gap:12px">
+          <div style="min-width:36px;text-align:center;padding-top:1px;flex-shrink:0">
+            <div style="font-size:15px;font-weight:700;color:var(--text);line-height:1">${day}</div>
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;margin-top:2px">${mon}</div>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:3px">
+              <span style="font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:155px">${e.debtor}</span>
+              <span class="co-${e.co}">${e.co}</span>
+              ${e.isPast?'<span style="font-size:9px;background:#FEF3C7;color:#92650A;border:1px solid #F5D98C;border-radius:8px;padding:1px 6px;font-weight:600">⚠ past</span>':''} 
+            </div>
+            <div style="font-size:11px;color:var(--muted)">#${e.cheque}${inv}</div>
+          </div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);text-align:right;white-space:nowrap;padding-top:2px;flex-shrink:0">${fA(e.amount)}</div>
+        </div>`;
+      });
+      h+='</div>';
+    });
+    // Grand total
+    h+=`<div style="background:var(--card);border-top:1.5px solid var(--border);padding:13px 16px;display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+      <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.7px;color:var(--muted)">Total PDC on hand</span>
+      <span style="font-size:15px;font-weight:700;color:var(--pdc)">${fK(total)}</span>
+    </div>`;
+    panel.innerHTML=h;
   }
 
   function togglePDC(btn){
