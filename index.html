@@ -456,6 +456,8 @@ function shareFromPreview(){
         const waContact=(_pvContact&&_pvContact.person)?_pvContact.person:(d.contacts&&d.contacts[0]&&d.contacts[0].person?d.contacts[0].person:d.n);
         const waAmt=d.cp_ov.toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g,',');
         const waMsg=`Dear ${waContact},\n\nPlease find attached your account statement as of ${TODAY_STR}. Your outstanding balance is OMR ${waAmt}. Could you please arrange for payment and inform me once done.\n\nThank you.\n${co.name}`;
+        navigator.clipboard.writeText(waMsg).catch(()=>{});
+        showToast('📋 Message copied — paste as caption in WhatsApp');
         navigator.share({files:[file],title:`Account Statement — ${d.n}`,
           text:waMsg}).catch(()=>pdf.save(fname));
       }else{pdf.save(fname);}
