@@ -452,8 +452,12 @@ function shareFromPreview(){
       const blob=pdf.output('blob');
       const file=new File([blob],fname,{type:'application/pdf'});
       if(navigator.canShare&&navigator.canShare({files:[file]})){
+        const co=CO[d.co]||CO['NATIONAL'];
+        const waContact=(_pvContact&&_pvContact.person)?_pvContact.person:(d.contacts&&d.contacts[0]&&d.contacts[0].person?d.contacts[0].person:d.n);
+        const waAmt=d.cp_ov.toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+        const waMsg=`Dear ${waContact},\n\nPlease find attached your account statement as of ${TODAY_STR}. Your outstanding balance is OMR ${waAmt}. Could you please arrange for payment and inform me once done.\n\nThank you.\n${co.name}`;
         navigator.share({files:[file],title:`Account Statement — ${d.n}`,
-          text:`Account statement for ${d.n} as of ${TODAY_STR}.`}).catch(()=>pdf.save(fname));
+          text:waMsg}).catch(()=>pdf.save(fname));
       }else{pdf.save(fname);}
     }catch(e){console.error(e);alert('PDF error: '+e.message);}
     btn.disabled=false; btn.textContent='📤 Share PDF';
