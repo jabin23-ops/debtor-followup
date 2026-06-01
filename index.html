@@ -215,9 +215,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <button class="pill stale" id="fu-stale-pill" onclick="FU.toggleStale(this)">🟣 Stale <span class="fu-count" id="fu-stale-count">(0)</span></button>
     <button class="pill active all" data-f="status" data-v="ALL">All</button>
     <button class="pill ov"  data-f="status" data-v="OVERDUE">🔴 Overdue</button>
-    <button class="pill due" data-f="status" data-v="DUE">🟠 Due</button>
-    <button class="pill com" data-f="status" data-v="COMING">🟡 Coming</button>
-    <button class="pill cur" data-f="status" data-v="CURRENT">🟢 Current</button>
+    <button class="pill cur" data-f="status" data-v="NOT_OVERDUE">🟢 Not Yet Due</button>
   </div>
   <div class="filter-row">
     <button class="pill active all" data-f="co" data-v="ALL">All Companies</button>
@@ -260,7 +258,8 @@ let aS='ALL',aC='ALL',aG='NORMAL';
 
 function vis(){
   return D.filter(d=>{
-    if(aS!=='ALL'&&d.s!==aS)return false;
+    if(aS==='NOT_OVERDUE'){if(['OVERDUE','BAD DEBT','COURT CASE'].includes(d.s))return false;}
+    else if(aS!=='ALL'&&d.s!==aS)return false;
     if(aC!=='ALL'&&d.co!==aC)return false;
     if(aG==='NORMAL'&&d.sg!=='NORMAL')return false;
     if(aG==='SISTER'&&!['NORMAL','SISTER'].includes(d.sg))return false;
@@ -361,12 +360,13 @@ function updateKPIs(arr){
   const tot=arr.reduce((s,d)=>s+d.t,0),ov=arr.reduce((s,d)=>s+d.cp_ov,0),
         du=arr.reduce((s,d)=>s+d.du,0),cm=arr.reduce((s,d)=>s+d.cm,0),
         nt=arr.reduce((s,d)=>s+d.net,0);
-  document.getElementById('kt').textContent=fK(tot);
-  document.getElementById('ko').textContent=fK(ov);
-  document.getElementById('kd').textContent=fK(du);
-  document.getElementById('kc').textContent=fK(cm);
+  const fKr=v=>v<=0?'\u2014':'OMR '+Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  document.getElementById('kt').textContent=fKr(tot);
+  document.getElementById('ko').textContent=fKr(ov);
+  document.getElementById('kd').textContent=fKr(du);
+  document.getElementById('kc').textContent=fKr(cm);
   document.getElementById('sc').textContent=arr.length+' accounts';
-  document.getElementById('nt').textContent=fK(nt);
+  document.getElementById('nt').textContent=fKr(nt);
 }
 window.updateKPIs = updateKPIs;
 
