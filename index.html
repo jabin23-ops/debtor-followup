@@ -1068,7 +1068,7 @@ window.FU = (function(){
     } else {
       body.innerHTML=entries.map(e=>{
         const when=fmtDate(e.timestamp_iso);
-        const time=(e.timestamp_iso||'').slice(11,16)||'';
+        const time=e.timestamp_iso?new Date(e.timestamp_iso).toLocaleTimeString('en-GB',{timeZone:'Asia/Muscat',hour:'2-digit',minute:'2-digit',hour12:false}):'';
         const who=e.operator||'?';
         const out=(e.outcome||e.action||'contacted').replace(/_/g,' ');
         const notes=e.notes||e.comment||'';
