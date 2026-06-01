@@ -194,7 +194,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .pv-tbl td{padding:5px 4px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
 .pv-tbl tr.od td{background:#fff5f5;color:#c00;}
 .pv-tbl input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:#1E3560;}
-.preview-actions{display:flex;gap:8px;padding:12px 14px;border-top:1px solid #eee;}
+.preview-actions{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-top:1px solid #eee;}
+.pv-pill{border:1.5px solid rgba(139,110,86,0.25);background:#F8F3EC;color:#8B7A65;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s}
 .preview-cancel{flex:1;padding:11px;border:1px solid #ccc;border-radius:8px;
   background:#fff;font-size:14px;cursor:pointer;}
 .preview-share{flex:2;padding:11px;border:none;border-radius:8px;
@@ -382,6 +383,19 @@ function showToast(msg,dur=2800){
 }
 
 // ── EMAIL CONTACT ─────────────────────────────────────────────────────────────
+function selectSendTo(ci){
+  if(!_pvD)return;
+  _pvContact=(_pvD.contacts&&_pvD.contacts[ci])?_pvD.contacts[ci]:_pvContact;
+  document.querySelectorAll('.pv-pill').forEach(p=>{
+    const active=parseInt(p.dataset.ci)===ci;
+    p.style.borderColor=active?'#5577A8':'rgba(139,110,86,0.25)';
+    p.style.background=active?'rgba(85,119,168,0.12)':'#F8F3EC';
+    p.style.color=active?'#5577A8':'#8B7A65';
+  });
+  const eb=document.getElementById('previewEmailBtn');
+  if(_pvContact&&_pvContact.email){eb.textContent=`📧 Email ${_pvContact.person}`;eb.style.display='';}
+  else{eb.style.display='none';}
+}
 function emailContact(evt,cardId,ci){
   evt.stopPropagation();
   previewStmt(evt,cardId,ci);
@@ -396,7 +410,19 @@ function previewStmt(evt,cardId,ci){
   sts.forEach(s=>{v.filter(d=>d.s===s).forEach((d,i)=>{stMap[`c${s.replace(/[\s]/g,'')}_${i}`]=d;});});
   const d=stMap[cardId]; if(!d)return;
   _pvD=d;
-  _pvContact=(ci!=null&&d.contacts&&d.contacts[ci])?d.contacts[ci]:null;
+  // Determine active contact — use ci if provided, else default to first
+  const activeCi=(ci!=null&&d.contacts&&d.contacts[ci])?ci:0;
+  _pvContact=(d.contacts&&d.contacts.length>0)?d.contacts[activeCi]:null;
+  // Multi-contact Send To pills
+  const sendToDiv=document.getElementById('previewSendTo');
+  const pillsDiv=document.getElementById('previewSendToPills');
+  if(d.contacts&&d.contacts.length>1){
+    sendToDiv.style.display='';
+    pillsDiv.innerHTML=d.contacts.map((c,idx)=>{
+      const sel=idx===activeCi?'border-color:#5577A8;background:rgba(85,119,168,0.12);color:#5577A8;':'';
+      return `<button class="pv-pill" data-ci="${idx}" style="${sel}" onclick="selectSendTo(${idx})">${c.person||'Contact '+(idx+1)}</button>`;
+    }).join('');
+  } else { sendToDiv.style.display='none'; }
   // Update footer email button
   const eb=document.getElementById('previewEmailBtn');
   if(_pvContact&&_pvContact.email){
@@ -1051,9 +1077,15 @@ window.FU = (function(){
     </div>
     <div class="preview-body" id="previewBody"></div>
     <div class="preview-actions">
-      <button class="preview-cancel" onclick="closePreview()">Close</button>
-      <button class="preview-share" id="previewEmailBtn" onclick="emailFromPreview()" style="display:none">📧 Email</button>
-      <button class="preview-share" id="previewShareBtn" onclick="shareFromPreview()">📤 Share PDF</button>
+      <div id="previewSendTo" style="display:none">
+        <div style="font-size:10px;font-weight:600;color:#8B7A65;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:7px">Send to</div>
+        <div id="previewSendToPills" style="display:flex;gap:7px;flex-wrap:wrap"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="preview-cancel" onclick="closePreview()">Close</button>
+        <button class="preview-share" id="previewEmailBtn" onclick="emailFromPreview()" style="display:none">📧 Email</button>
+        <button class="preview-share" id="previewShareBtn" onclick="shareFromPreview()">📤 Share PDF</button>
+      </div>
     </div>
   </div>
 </div>
