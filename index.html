@@ -948,7 +948,7 @@ window.FU = (function(){
         if(broken) cls += ' broken';
         else if(isStale) cls += ' stale-tag';
         div.className = cls;
-        div.textContent = `Last contacted: ${when} · ${who} · ${out}${promiseText}`;
+        div.textContent = `Last contacted: ${when} · ${who}`;
         left.appendChild(div);
       } else {
         // never touched — show stale tag if customer would be eligible
