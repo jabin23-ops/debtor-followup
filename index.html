@@ -806,6 +806,16 @@ window.FU = (function(){
     decorate();
   }
 
+  function fmtDate(str){
+    if(!str) return '';
+    const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(str);
+    const d = isDateOnly ? new Date(str+'T00:00:00') : new Date(str);
+    if(isNaN(d)) return str;
+    const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const mons=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return days[d.getDay()]+', '+d.getDate()+' '+mons[d.getMonth()]+' '+String(d.getFullYear()).slice(2);
+  }
+
   function lastFor(name){
     if(!name) return null;
     const n = name.toLowerCase().trim();
@@ -922,15 +932,15 @@ window.FU = (function(){
       const left = card.querySelector('.card-left');
       const oldDec = left.querySelector('.fu-last'); if(oldDec) oldDec.remove();
       if(l){
-        const when = (l.timestamp_iso || '').slice(0,10);
+        const when = fmtDate(l.timestamp_iso);
         const who = l.operator || '?';
         const out = (l.outcome || l.action || 'contacted').replace(/_/g,' ');
         let broken = false, isStale = false, promiseText = '';
         if(l.promise_date){
           const pd = new Date(l.promise_date);
           if(!isNaN(pd) && pd < new Date() && l.outcome !== 'paid'){
-            broken = true; promiseText = ` · ⚠ promised ${l.promise_date} — didn't`;
-          } else if(!isNaN(pd)){ promiseText = ` · promised ${l.promise_date}`; }
+            broken = true; promiseText = ` · ⚠ promised ${fmtDate(l.promise_date)} — didn't`;
+          } else if(!isNaN(pd)){ promiseText = ` · promised ${fmtDate(l.promise_date)}`; }
         }
         if(new Date(l.timestamp_iso).getTime() < cutoff) isStale = true;
         const div = document.createElement('div');
@@ -1057,7 +1067,7 @@ window.FU = (function(){
       body.innerHTML='<div style="text-align:center;padding:32px 16px;color:var(--muted);font-size:13px">No log entries yet for this account.</div>';
     } else {
       body.innerHTML=entries.map(e=>{
-        const when=(e.timestamp_iso||'').slice(0,10);
+        const when=fmtDate(e.timestamp_iso);
         const time=(e.timestamp_iso||'').slice(11,16)||'';
         const who=e.operator||'?';
         const out=(e.outcome||e.action||'contacted').replace(/_/g,' ');
@@ -1069,7 +1079,7 @@ window.FU = (function(){
             <span style="font-size:12px;font-weight:700;color:var(--text)">${when}${time?' · '+time:''}</span>
             <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:var(--current-bg);color:var(--current)">${who}</span>
           </div>
-          <div style="font-size:12px;color:var(--text);margin-bottom:${(notes||promise)?'6px':'0'}">${out}${promise?` <span style="margin-left:6px;font-size:10px;padding:1px 7px;border-radius:20px;background:${broken?'var(--overdue-bg)':'var(--coming-bg)'};color:${broken?'var(--overdue)':'var(--coming)'}">⏰ promised ${promise}${broken?' — overdue':''}</span>`:''}</div>
+          <div style="font-size:12px;color:var(--text);margin-bottom:${(notes||promise)?'6px':'0'}">${out}${promise?` <span style="margin-left:6px;font-size:10px;padding:1px 7px;border-radius:20px;background:${broken?'var(--overdue-bg)':'var(--coming-bg)'};color:${broken?'var(--overdue)':'var(--coming)'}">⏰ promised ${fmtDate(promise)}${broken?' — overdue':''}</span>`:''}</div>
           ${notes?`<div style="font-size:12px;color:var(--muted);background:var(--soft);border-radius:8px;padding:8px 10px;line-height:1.5">${notes}</div>`:''}
         </div>`;
       }).join('');
