@@ -30,6 +30,7 @@
   --sister:#8E76A0;
   --sister-bg:rgba(142,118,160,0.12);
   --stale:#A8628A;
+  --pdc:#2B6CB0; --pdc-bg:rgba(43,108,176,0.1);
   --stale-bg:rgba(168,98,138,0.13);
 
   --pdc:#5A8F73;
@@ -65,9 +66,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .pill.t5.active{background:var(--current);color:#fff;border-color:var(--current)}
 .pill.stale{border-color:var(--stale);color:var(--stale);background:var(--stale-bg)}
 .pill.stale.active{background:var(--stale);color:#fff;border-color:var(--stale)}
-.pill.pdc{border-color:#E65100;color:#E65100;background:#FFF3E0}
-.pill.pdc.active{background:#E65100;color:#fff;border-color:#E65100}
-.fu-pdc-chip{font-size:10px;font-weight:700;color:#E65100;background:#FFF3E0;border-radius:20px;padding:2px 8px;margin-top:4px;display:inline-block}
+.pill.pdc{border-color:var(--pdc);color:var(--pdc);background:var(--pdc-bg)}
+.pill.pdc.active{background:var(--pdc);color:#fff;border-color:var(--pdc)}
+.pill.collect{border-color:#E65100;color:#E65100;background:#FFF3E0}
+.pill.collect.active{background:#E65100;color:#fff;border-color:#E65100}
+.fu-collect-chip{font-size:10px;font-weight:700;color:#E65100;background:#FFF3E0;border-radius:20px;padding:2px 8px;margin-top:4px;display:inline-block}
 .fu-count{font-weight:600;opacity:0.85;margin-left:2px}
 
 /* KPI */
@@ -217,7 +220,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   <div class="filter-row">
     <button class="pill t5" id="fu-t5-pill" onclick="FU.toggleT5(this)">⭐ Today's 5</button>
     <button class="pill stale" id="fu-stale-pill" onclick="FU.toggleStale(this)">🟣 Stale <span class="fu-count" id="fu-stale-count">(0)</span></button>
-    <button class="pill pdc" id="fu-pdc-pill" onclick="FU.togglePdc(this)">📬 PDC <span class="fu-count" id="fu-pdc-count">(0)</span></button>
+    <button class="pill pdc" id="fu-pdc-pill" onclick="FU.togglePDC(this)">💳 PDC</button>
+    <button class="pill collect" id="fu-collect-pill" onclick="FU.toggleCollect(this)">📬 Collect <span class="fu-count" id="fu-collect-count">(0)</span></button>
     <button class="pill active all" data-f="status" data-v="ALL">All</button>
     <button class="pill ov"  data-f="status" data-v="OVERDUE">🔴 Overdue</button>
     <button class="pill cur" data-f="status" data-v="NOT_OVERDUE">🟢 Not Yet Due</button>
@@ -242,6 +246,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 </div>
 
 <div id="root" style="flex:1"></div>
+<div id="pdc-panel" style="display:none;flex:1;overflow-y:auto;padding:12px 14px"></div>
 
 <div class="bot">
   <div><div class="bl">Showing</div><div class="bv" id="sc">–</div></div>
@@ -759,7 +764,8 @@ window.FU = (function(){
   let op = localStorage.getItem(LS_OP);
   let t5Active = false, t5Set = null;
   let staleActive = false, staleSet = null;
-  let pdcActive = false, pdcSet = null;
+  let pdcActive = false;
+  let collectActive = false, collectSet = null;
 
   function pickOp(){
     if(op) return;
@@ -802,8 +808,18 @@ window.FU = (function(){
       if(j.ok && Array.isArray(j.log)) log = j.log;
     }catch(e){ console.warn('Bridge fetch failed', e); }
     refreshStaleCount();
-    refreshPdcCount();
+    refreshCollectCount();
     decorate();
+  }
+
+  function fmtDate(str){
+    if(!str) return '';
+    const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(str);
+    const d = isDateOnly ? new Date(str+'T00:00:00') : new Date(str);
+    if(isNaN(d)) return str;
+    const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const mons=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return days[d.getDay()]+', '+d.getDate()+' '+mons[d.getMonth()]+' '+String(d.getFullYear()).slice(2);
   }
 
   function lastFor(name){
@@ -853,15 +869,7 @@ window.FU = (function(){
     }).map(d => d.n));
   }
 
-  function refreshStaleCount(){
-    const c = document.getElementById('fu-stale-count');
-    if(c){
-      const n = computeStale().size;
-      c.textContent = '(' + n + ')';
-    }
-  }
-
-  function computePdcReady(){
+  function computeCollect(){
     const set = new Set();
     (window.D || []).forEach(d => {
       const n = d.n.toLowerCase().trim();
@@ -874,15 +882,33 @@ window.FU = (function(){
     return set;
   }
 
-  function refreshPdcCount(){
-    const c = document.getElementById('fu-pdc-count');
-    if(c){ c.textContent = '(' + computePdcReady().size + ')'; }
+  function refreshCollectCount(){
+    const c = document.getElementById('fu-collect-count');
+    if(c){ c.textContent = '(' + computeCollect().size + ')'; }
+  }
+
+  function refreshStaleCount(){
+    const c = document.getElementById('fu-stale-count');
+    if(c){
+      const n = computeStale().size;
+      c.textContent = '(' + n + ')';
+    }
   }
 
   function exitViews(){
     if(t5Active){ t5Active = false; t5Set = null; document.getElementById('fu-t5-pill').classList.remove('active'); }
     if(staleActive){ staleActive = false; staleSet = null; document.getElementById('fu-stale-pill').classList.remove('active'); }
-    if(pdcActive){ pdcActive = false; pdcSet = null; const pb=document.getElementById('fu-pdc-pill'); if(pb) pb.classList.remove('active'); }
+    if(pdcActive){
+      pdcActive = false;
+      const pp = document.getElementById('fu-pdc-pill'); if(pp) pp.classList.remove('active');
+      document.getElementById('root').style.display = '';
+      document.getElementById('pdc-panel').style.display = 'none';
+      const bot = document.querySelector('.bot'); if(bot) bot.style.display = '';
+    }
+    if(collectActive){
+      collectActive = false; collectSet = null;
+      const cp = document.getElementById('fu-collect-pill'); if(cp) cp.classList.remove('active');
+    }
   }
 
   function toggleT5(btn){
@@ -905,18 +931,8 @@ window.FU = (function(){
     setTimeout(applyFilters, 50);
   }
 
-  function togglePdc(btn){
-    const wasActive = pdcActive;
-    exitViews();
-    if(!wasActive){
-      pdcActive = true; pdcSet = computePdcReady(); btn.classList.add('active');
-    }
-    if(window.render) window.render();
-    setTimeout(applyFilters, 50);
-  }
-
   function applyFilters(){
-    const activeSet = t5Active ? t5Set : (staleActive ? staleSet : (pdcActive ? pdcSet : null));
+    const activeSet = t5Active ? t5Set : (staleActive ? staleSet : (collectActive ? collectSet : null));
     if(!activeSet) return;
     document.querySelectorAll('.card').forEach(card => {
       const nameEl = card.querySelector('.card-name'); if(!nameEl) return;
@@ -937,7 +953,7 @@ window.FU = (function(){
 
   function decorate(){
     const cutoff = Date.now() - STALE_DAYS*24*60*60*1000;
-    const activePdcSet = computePdcReady();
+    const activeCollectSet = computeCollect();
     document.querySelectorAll('.card').forEach(card => {
       const nameEl = card.querySelector('.card-name'); if(!nameEl) return;
       const name = nameEl.textContent.trim();
@@ -945,15 +961,15 @@ window.FU = (function(){
       const left = card.querySelector('.card-left');
       const oldDec = left.querySelector('.fu-last'); if(oldDec) oldDec.remove();
       if(l){
-        const when = (l.timestamp_iso || '').slice(0,10);
+        const when = fmtDate(l.timestamp_iso);
         const who = l.operator || '?';
         const out = (l.outcome || l.action || 'contacted').replace(/_/g,' ');
         let broken = false, isStale = false, promiseText = '';
         if(l.promise_date){
           const pd = new Date(l.promise_date);
           if(!isNaN(pd) && pd < new Date() && l.outcome !== 'paid'){
-            broken = true; promiseText = ` · ⚠ promised ${l.promise_date} — didn't`;
-          } else if(!isNaN(pd)){ promiseText = ` · promised ${l.promise_date}`; }
+            broken = true; promiseText = ` · ⚠ promised ${fmtDate(l.promise_date)} — didn't`;
+          } else if(!isNaN(pd)){ promiseText = ` · promised ${fmtDate(l.promise_date)}`; }
         }
         if(new Date(l.timestamp_iso).getTime() < cutoff) isStale = true;
         const div = document.createElement('div');
@@ -961,7 +977,7 @@ window.FU = (function(){
         if(broken) cls += ' broken';
         else if(isStale) cls += ' stale-tag';
         div.className = cls;
-        div.textContent = `Last contacted: ${when} · ${who} · ${out}${promiseText}`;
+        div.textContent = `Last contacted: ${when} · ${who}`;
         left.appendChild(div);
       } else {
         // never touched — show stale tag if customer would be eligible
@@ -985,18 +1001,16 @@ window.FU = (function(){
         lb.onclick = (ev) => { ev.stopPropagation(); openLog(name); };
         actionBtns.appendChild(lb);
       }
-      // PDC chip on card
-      const oldPdcChip = card.querySelector('.fu-pdc-chip'); if(oldPdcChip) oldPdcChip.remove();
-      if(activePdcSet.has(name)){
-        const pc = document.createElement('div'); pc.className = 'fu-pdc-chip';
+      const oldChip = card.querySelector('.fu-collect-chip'); if(oldChip) oldChip.remove();
+      if(activeCollectSet.has(name)){
+        const pc = document.createElement('div'); pc.className = 'fu-collect-chip';
         pc.textContent = '📬 PDC ready to collect';
         const cardLeft = card.querySelector('.card-left'); if(cardLeft) cardLeft.appendChild(pc);
       }
-      // Collected button — only in PDC view
-      const oldCb = actionBtns.querySelector('.fu-collect-btn'); if(oldCb) oldCb.remove();
-      if(pdcActive && pdcSet && pdcSet.has(name)){
+      const oldCb = actionBtns.querySelector('.fu-pdc-collect-btn'); if(oldCb) oldCb.remove();
+      if(collectActive && collectSet && collectSet.has(name)){
         const cb = document.createElement('button');
-        cb.className = 'stmt-btn fu-collect-btn'; cb.textContent = '✅ Collected';
+        cb.className = 'stmt-btn fu-pdc-collect-btn'; cb.textContent = '✅ Collected';
         cb.onclick = (ev) => { ev.stopPropagation(); openLog(name, 'pdc_collected'); };
         actionBtns.insertBefore(cb, actionBtns.firstChild);
       }
@@ -1075,7 +1089,7 @@ window.FU = (function(){
     };
     try{
       await fetch(BRIDGE, { method:'POST', headers:{'Content-Type':'text/plain;charset=UTF-8'}, body: JSON.stringify(entry) });
-      log.unshift(entry); closeLog(); refreshStaleCount(); refreshPdcCount(); decorate();
+      log.unshift(entry); closeLog(); refreshStaleCount(); refreshCollectCount(); decorate();
       if(entry.outcome === 'pdc_ready'){
         const dObj = (window.D||[]).find(x => x.n === name);
         const coName = dObj && window.CO && window.CO[dObj.co] ? window.CO[dObj.co].name : '';
@@ -1084,7 +1098,7 @@ window.FU = (function(){
         navigator.clipboard.writeText(msg).catch(()=>{});
         if(window.showToast) showToast('📬 PDC alert copied — forward to Dad on WhatsApp');
       }
-      if(pdcActive){ pdcSet = computePdcReady(); if(window.render) window.render(); setTimeout(applyFilters, 50); }
+      if(collectActive){ collectSet = computeCollect(); if(window.render) window.render(); setTimeout(applyFilters, 50); }
     }catch(e){ sv.textContent = 'Error — retry'; sv.disabled = false; }
   }
 
@@ -1115,8 +1129,8 @@ window.FU = (function(){
       body.innerHTML='<div style="text-align:center;padding:32px 16px;color:var(--muted);font-size:13px">No log entries yet for this account.</div>';
     } else {
       body.innerHTML=entries.map(e=>{
-        const when=(e.timestamp_iso||'').slice(0,10);
-        const time=(e.timestamp_iso||'').slice(11,16)||'';
+        const when=fmtDate(e.timestamp_iso);
+        const time=e.timestamp_iso?new Date(e.timestamp_iso).toLocaleTimeString('en-GB',{timeZone:'Asia/Muscat',hour:'2-digit',minute:'2-digit',hour12:false}):'';
         const who=e.operator||'?';
         const out=(e.outcome||e.action||'contacted').replace(/_/g,' ');
         const notes=e.notes||e.comment||'';
@@ -1127,7 +1141,7 @@ window.FU = (function(){
             <span style="font-size:12px;font-weight:700;color:var(--text)">${when}${time?' · '+time:''}</span>
             <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:var(--current-bg);color:var(--current)">${who}</span>
           </div>
-          <div style="font-size:12px;color:var(--text);margin-bottom:${(notes||promise)?'6px':'0'}">${out}${promise?` <span style="margin-left:6px;font-size:10px;padding:1px 7px;border-radius:20px;background:${broken?'var(--overdue-bg)':'var(--coming-bg)'};color:${broken?'var(--overdue)':'var(--coming)'}">⏰ promised ${promise}${broken?' — overdue':''}</span>`:''}</div>
+          <div style="font-size:12px;color:var(--text);margin-bottom:${(notes||promise)?'6px':'0'}">${out}${promise?` <span style="margin-left:6px;font-size:10px;padding:1px 7px;border-radius:20px;background:${broken?'var(--overdue-bg)':'var(--coming-bg)'};color:${broken?'var(--overdue)':'var(--coming)'}">⏰ promised ${fmtDate(promise)}${broken?' — overdue':''}</span>`:''}</div>
           ${notes?`<div style="font-size:12px;color:var(--muted);background:var(--soft);border-radius:8px;padding:8px 10px;line-height:1.5">${notes}</div>`:''}
         </div>`;
       }).join('');
@@ -1135,7 +1149,129 @@ window.FU = (function(){
     document.getElementById('historyOv').classList.add('open');
   }
 
-  return { setOp, changeOp, openLog, closeLog, saveLog, toggleT5, toggleStale, togglePdc, exitViews, openHistory };
+  function parseChequeDate(str){
+    if(!str) return null;
+    const mo={Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+    const m=str.match(/(\d{2})-([A-Za-z]{3})-(\d{2})/);
+    if(!m) return null;
+    return new Date(2000+parseInt(m[3]), mo[m[2]], parseInt(m[1]));
+  }
+
+  function renderPDC(){
+    const panel = document.getElementById('pdc-panel');
+    const today = new Date(); today.setHours(0,0,0,0);
+    const MONS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const fK=v=>'OMR '+v.toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+    const fA=v=>v.toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+    let entries=[];
+    (window.D||[]).forEach(d=>{
+      (d.pdc||[]).forEach(p=>{
+        const dObj=parseChequeDate(p.cheque_date);
+        entries.push({cheque_date:p.cheque_date,cheque:p.cheque,amount:p.amount||0,
+          inv_refs:p.inv_refs||'',debtor:d.n,co:d.co,dateObj:dObj,isPast:dObj&&dObj<today});
+      });
+    });
+    entries.sort((a,b)=>{
+      if(!a.dateObj&&!b.dateObj)return 0;
+      if(!a.dateObj)return 1; if(!b.dateObj)return -1;
+      return a.dateObj-b.dateObj;
+    });
+    if(!entries.length){
+      panel.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)">No PDC cheques on hand</div>';
+      return;
+    }
+    const total=entries.reduce((s,e)=>s+e.amount,0);
+    const hasPast=entries.some(e=>e.isPast);
+    const debtors=new Set(entries.map(e=>e.debtor)).size;
+    // Group by year-month key
+    const grpMap={}, grpOrder=[];
+    entries.forEach(e=>{
+      const key=e.dateObj?`${e.dateObj.getFullYear()}-${e.dateObj.getMonth()}`:`unk`;
+      const lbl=e.dateObj?`${MONS[e.dateObj.getMonth()]} ${e.dateObj.getFullYear()}`:`Unknown`;
+      if(!grpMap[key]){grpMap[key]={lbl,rows:[],tot:0};grpOrder.push(key);}
+      grpMap[key].rows.push(e); grpMap[key].tot+=e.amount;
+    });
+    let h='';
+    // Summary bar
+    h+=`<div style="background:var(--card);border-bottom:1px solid var(--border);padding:13px 16px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.7px;color:var(--muted);font-weight:600;margin-bottom:2px">PDC on hand</div>
+        <div style="font-size:17px;font-weight:700;color:var(--text)">${fK(total)}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:12px;color:var(--muted)">${entries.length} cheque${entries.length!==1?'s':''}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">${debtors} debtor${debtors!==1?'s':''} · ${grpOrder.length} month${grpOrder.length!==1?'s':''}</div>
+      </div>
+    </div>`;
+    // Past banner
+    if(hasPast){
+      const pc=entries.filter(e=>e.isPast).length;
+      h+=`<div style="background:#FFF8EB;border-bottom:1px solid #F5D98C;padding:9px 16px;font-size:12px;color:#92650A;font-weight:500">⚠ ${pc} cheque${pc!==1?'s':''} past date — confirm if cleared</div>`;
+    }
+    // Month groups
+    grpOrder.forEach(key=>{
+      const g=grpMap[key];
+      const gPast=g.rows.every(e=>e.isPast);
+      h+=`<div>
+        <div style="padding:7px 16px 6px;display:flex;justify-content:space-between;align-items:baseline;background:${gPast?'#FFF4DC':'var(--soft)'};border-top:1px solid ${gPast?'#F5D98C':'var(--border)'};border-bottom:1px solid ${gPast?'#F5D98C':'var(--border)'}">
+          <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:${gPast?'#92650A':'var(--muted)'}">${g.lbl}${gPast?' · overdue':''}</span>
+          <span style="font-size:11px;font-weight:600;color:${gPast?'#92650A':'var(--current)'}">${fK(g.tot)}</span>
+        </div>`;
+      g.rows.forEach(e=>{
+        const day=e.dateObj?String(e.dateObj.getDate()).padStart(2,'0'):'?';
+        const mon=e.dateObj?MONS[e.dateObj.getMonth()]:'?';
+        const inv=e.inv_refs&&e.inv_refs!=='NOT,SUPPLIED'?` · inv: ${e.inv_refs}`:'';
+        h+=`<div style="background:${e.isPast?'#FFFBF0':'var(--card)'};border-bottom:0.5px solid var(--border);padding:11px 16px;display:flex;align-items:flex-start;gap:12px">
+          <div style="min-width:36px;text-align:center;padding-top:1px;flex-shrink:0">
+            <div style="font-size:15px;font-weight:700;color:var(--text);line-height:1">${day}</div>
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;margin-top:2px">${mon}</div>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:3px">
+              <span style="font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:155px">${e.debtor}</span>
+              <span class="co-${e.co}">${e.co}</span>
+              ${e.isPast?'<span style="font-size:9px;background:#FEF3C7;color:#92650A;border:1px solid #F5D98C;border-radius:8px;padding:1px 6px;font-weight:600">⚠ past</span>':''} 
+            </div>
+            <div style="font-size:11px;color:var(--muted)">#${e.cheque}${inv}</div>
+          </div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);text-align:right;white-space:nowrap;padding-top:2px;flex-shrink:0">${fA(e.amount)}</div>
+        </div>`;
+      });
+      h+='</div>';
+    });
+    // Grand total
+    h+=`<div style="background:var(--card);border-top:1.5px solid var(--border);padding:13px 16px;display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+      <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.7px;color:var(--muted)">Total PDC on hand</span>
+      <span style="font-size:15px;font-weight:700;color:var(--pdc)">${fK(total)}</span>
+    </div>`;
+    panel.innerHTML=h;
+  }
+
+  function togglePDC(btn){
+    const wasActive = pdcActive;
+    exitViews();
+    if(!wasActive){
+      pdcActive = true; btn.classList.add('active');
+      document.getElementById('root').style.display = 'none';
+      document.getElementById('pdc-panel').style.display = 'block';
+      const bot = document.querySelector('.bot'); if(bot) bot.style.display = 'none';
+      renderPDC();
+    } else {
+      if(window.render) window.render();
+    }
+  }
+
+  function toggleCollect(btn){
+    const wasActive = collectActive;
+    exitViews();
+    if(!wasActive){
+      collectActive = true; collectSet = computeCollect(); btn.classList.add('active');
+    }
+    if(window.render) window.render();
+    setTimeout(applyFilters, 50);
+  }
+
+  return { setOp, changeOp, openLog, closeLog, saveLog, toggleT5, toggleStale, exitViews, openHistory, togglePDC, toggleCollect };
 })();
 </script>
 
