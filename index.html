@@ -73,6 +73,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .pill.snoozed{border-color:#7B4E8C;color:#7B4E8C;background:rgba(123,78,140,0.13)}
 .pill.snoozed.active{background:#7B4E8C;color:#fff;border-color:#7B4E8C}
 .fu-snooze-chip{font-size:10px;font-weight:700;color:#7B4E8C;background:rgba(123,78,140,0.13);border-radius:20px;padding:2px 8px;margin-top:4px;display:inline-block}
+.fu-promise-chip{font-size:10px;font-weight:700;color:#92400E;background:rgba(146,64,14,0.10);border-radius:20px;padding:2px 8px;margin-top:4px;display:inline-block}
 .dd-wrap{position:relative;display:inline-block}
 .dd-trigger{font-size:12px;font-weight:600;padding:7px 12px;border-radius:20px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
 .dd-trigger.active{background:var(--text);color:var(--card);border-color:var(--text)}
@@ -236,9 +237,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div class="updated">31 May 2026</div>
   </div>
   <div class="filter-row">
-    <button class="pill t5" id="fu-t5-pill" onclick="FU.toggleT5(this)">⭐ Today's 5</button>
+    <button class="pill t5" id="fu-t5-pill" onclick="FU.toggleT5(this)">⭐ Today's follow-up <span class="fu-count" id="fu-today-count">(5)</span></button>
     <button class="pill stale" id="fu-stale-pill" onclick="FU.toggleStale(this)">🟣 Stale <span class="fu-count" id="fu-stale-count">(0)</span></button>
-    <button class="pill snoozed" id="fu-snoozed-pill" onclick="FU.toggleSnoozed(this)">🔕 Snoozed <span class="fu-count" id="fu-snoozed-count">(0)</span></button>
+    <button class="pill snoozed" id="fu-snoozed-pill" onclick="FU.toggleSnoozed(this)">📅 Scheduled <span class="fu-count" id="fu-snoozed-count">(0)</span></button>
   </div>
   <div class="filter-row">
     <button class="pill active all" data-f="co" data-v="ALL">All Companies</button>
@@ -847,6 +848,7 @@ window.FU = (function(){
     refreshStaleCount();
     refreshCollectCount();
     refreshSnoozedCount();
+    refreshTodayCount();
     decorate();
   }
 
@@ -917,7 +919,24 @@ window.FU = (function(){
       return { name: d.n, score };
     });
     scored.sort((a,b) => b.score - a.score);
-    return new Set(scored.slice(0,5).map(x => x.name));
+    const top5 = new Set(scored.slice(0,5).map(x => x.name));
+    // Union with anyone whose scheduled follow-up date has arrived
+    computeDueBack().forEach(n => top5.add(n));
+    return top5;
+  }
+
+  // Customers whose most recent log is a scheduled follow-up (snooze or promise)
+  // whose date is today or earlier, and they haven't been actioned since.
+  function computeDueBack(){
+    const today = new Date();
+    return new Set(eligibleAll().filter(d => {
+      const l = lastFor(d.n);
+      if(!l || !l.promise_date) return false;
+      if(l.outcome !== 'snooze' && l.outcome !== 'will_pay') return false;
+      const pd = new Date(l.promise_date + 'T00:00:00');
+      if(isNaN(pd)) return false;
+      return pd <= today;
+    }).map(d => d.n));
   }
 
   function computeStale(){
@@ -957,6 +976,11 @@ window.FU = (function(){
   function refreshSnoozedCount(){
     const c = document.getElementById('fu-snoozed-count');
     if(c){ c.textContent = '(' + computeSnoozed().size + ')'; }
+  }
+
+  function refreshTodayCount(){
+    const c = document.getElementById('fu-today-count');
+    if(c){ c.textContent = '(' + computeT5().size + ')'; }
   }
 
   function refreshStaleCount(){
@@ -1019,7 +1043,7 @@ window.FU = (function(){
 
   function unsnooze(name){
     if(!name) return;
-    if(!confirm('Unsnooze ' + name + ' — bring back into the active list now?')) return;
+    if(!confirm('Bring ' + name + ' back into today\'s follow-up now?')) return;
     const entry = {
       timestamp_iso: new Date().toISOString(),
       customer_name: name, operator: op, channel: '',
@@ -1029,7 +1053,7 @@ window.FU = (function(){
     fetch(BRIDGE, { method:'POST', headers:{'Content-Type':'text/plain;charset=UTF-8'}, body: JSON.stringify(entry) })
       .catch(()=>{});
     log.unshift(entry);
-    refreshStaleCount(); refreshCollectCount(); refreshSnoozedCount();
+    refreshStaleCount(); refreshCollectCount(); refreshSnoozedCount(); refreshTodayCount();
     if(snoozedActive){ snoozedSet = computeSnoozed(); }
     if(window.render) window.render();
     setTimeout(()=>{ if(snoozedActive) applyFilters(); decorate(); }, 50);
@@ -1065,13 +1089,14 @@ window.FU = (function(){
       const left = card.querySelector('.card-left');
       const oldDec = left.querySelector('.fu-last'); if(oldDec) oldDec.remove();
       const oldSnz = left.querySelector('.fu-snooze-chip'); if(oldSnz) oldSnz.remove();
+      const oldPrm = left.querySelector('.fu-promise-chip'); if(oldPrm) oldPrm.remove();
 
       const snoozeUntil = isSnoozedUntil(name);
       if(snoozeUntil){
         const snz = document.createElement('div');
-        snz.className = 'fu-snooze-chip';
         const isPromise = l && l.outcome === 'will_pay';
-        snz.textContent = (isPromise ? '⏳ Promised by ' : '🔕 Snoozed until ') + fmtDate(l.promise_date);
+        snz.className = isPromise ? 'fu-promise-chip' : 'fu-snooze-chip';
+        snz.textContent = (isPromise ? '⏳ Promised by ' : '📅 Follow up ') + fmtDate(l.promise_date);
         left.appendChild(snz);
       }
       if(l){
@@ -1127,7 +1152,7 @@ window.FU = (function(){
       if(snoozeUntil){
         const ub = document.createElement('button');
         ub.className = 'fu-unsnooze-btn';
-        ub.textContent = '🔓 Unsnooze now';
+        ub.textContent = '🔓 Bring forward';
         ub.onclick = (ev) => { ev.stopPropagation(); FU.unsnooze(name); };
         actionBtns.appendChild(ub);
       }
@@ -1166,7 +1191,7 @@ window.FU = (function(){
           <button class="fu-out" data-a="payment_received" data-o="paid">💵 Paid — please update Tally</button>
           <button class="fu-out" data-a="pdc_noted" data-o="pdc_ready">📬 PDC ready — needs collection</button>
           <button class="fu-out" data-a="pdc_noted" data-o="pdc_collected">✅ PDC collected</button>
-          <button class="fu-out" data-a="snooze" data-o="snooze">🔕 No action — check back in…</button>
+          <button class="fu-out" data-a="snooze" data-o="snooze">📅 No action now — follow up in…</button>
         </div>
         <div id="fu-pdc-amount-row" style="display:none;margin-top:12px">
           <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Cheque amount — leave blank if unknown</label>
@@ -1177,7 +1202,7 @@ window.FU = (function(){
           <input type="date" id="fu-promise" class="fu-input">
         </div>
         <div id="fu-snooze-row" style="display:none;margin-top:12px">
-          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px">Snooze for…</label>
+          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px">Follow up in…</label>
           <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">
             <button type="button" class="fu-snooze-preset" data-days="3">3 days</button>
             <button type="button" class="fu-snooze-preset" data-days="7">7 days</button>
@@ -1255,7 +1280,7 @@ window.FU = (function(){
     };
     try{
       await fetch(BRIDGE, { method:'POST', headers:{'Content-Type':'text/plain;charset=UTF-8'}, body: JSON.stringify(entry) });
-      log.unshift(entry); closeLog(); refreshStaleCount(); refreshCollectCount(); refreshSnoozedCount(); decorate();
+      log.unshift(entry); closeLog(); refreshStaleCount(); refreshCollectCount(); refreshSnoozedCount(); refreshTodayCount(); decorate();
       if(entry.outcome === 'pdc_ready'){
         const dObj = (window.D||[]).find(x => x.n === name);
         const coName = dObj && window.CO && window.CO[dObj.co] ? window.CO[dObj.co].name : '';
@@ -1273,6 +1298,7 @@ window.FU = (function(){
   function boot(){
     pickOp(); renderOpChip(); fetchLog();
     refreshSnoozedCount();
+    refreshTodayCount();
     // auto-activate stale view on Sundays (day 0)
     if(new Date().getDay() === 0){
       setTimeout(() => {
