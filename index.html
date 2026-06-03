@@ -70,6 +70,24 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .pill.pdc.active{background:var(--pdc);color:#fff;border-color:var(--pdc)}
 .pill.collect{border-color:#E65100;color:#E65100;background:#FFF3E0}
 .pill.collect.active{background:#E65100;color:#fff;border-color:#E65100}
+.pill.snoozed{border-color:#7B4E8C;color:#7B4E8C;background:rgba(123,78,140,0.13)}
+.pill.snoozed.active{background:#7B4E8C;color:#fff;border-color:#7B4E8C}
+.fu-snooze-chip{font-size:10px;font-weight:700;color:#7B4E8C;background:rgba(123,78,140,0.13);border-radius:20px;padding:2px 8px;margin-top:4px;display:inline-block}
+.dd-wrap{position:relative;display:inline-block}
+.dd-trigger{font-size:12px;font-weight:600;padding:7px 12px;border-radius:20px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.dd-trigger.active{background:var(--text);color:var(--card);border-color:var(--text)}
+.dd-trigger .caret{font-size:8px;opacity:0.7}
+.dd-menu{position:absolute;top:calc(100% + 4px);left:0;background:var(--card);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.15);min-width:180px;z-index:200;display:none;padding:6px}
+.dd-menu.open{display:block}
+.dd-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;font-size:12px;font-weight:500;color:var(--text);background:transparent;border:none;border-radius:6px;cursor:pointer;width:100%;text-align:left;white-space:nowrap}
+.dd-item:hover{background:var(--soft)}
+.dd-item.selected{background:var(--soft);font-weight:700}
+.dd-item .ddi-count{font-size:10px;color:var(--muted);font-weight:600}
+.dd-section{font-size:9px;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);padding:6px 11px 3px;font-weight:600}
+.dd-divider{height:1px;background:var(--border);margin:4px 0}
+.fu-snooze-preset{font-size:11px;font-weight:600;padding:6px 10px;border-radius:20px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;margin-right:4px}
+.fu-snooze-preset.selected{background:#7B4E8C;color:#fff;border-color:#7B4E8C}
+.fu-unsnooze-btn{font-size:11px;font-weight:600;padding:6px 10px;border-radius:18px;border:1px solid #7B4E8C;color:#7B4E8C;background:rgba(123,78,140,0.08);cursor:pointer;margin-top:6px}
 .fu-collect-chip{font-size:10px;font-weight:700;color:#E65100;background:#FFF3E0;border-radius:20px;padding:2px 8px;margin-top:4px;display:inline-block}
 .fu-count{font-weight:600;opacity:0.85;margin-left:2px}
 
@@ -220,11 +238,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   <div class="filter-row">
     <button class="pill t5" id="fu-t5-pill" onclick="FU.toggleT5(this)">⭐ Today's 5</button>
     <button class="pill stale" id="fu-stale-pill" onclick="FU.toggleStale(this)">🟣 Stale <span class="fu-count" id="fu-stale-count">(0)</span></button>
-    <button class="pill pdc" id="fu-pdc-pill" onclick="FU.togglePDC(this)">💳 PDC</button>
-    <button class="pill collect" id="fu-collect-pill" onclick="FU.toggleCollect(this)">📬 Collect <span class="fu-count" id="fu-collect-count">(0)</span></button>
-    <button class="pill active all" data-f="status" data-v="ALL">All</button>
-    <button class="pill ov"  data-f="status" data-v="OVERDUE">🔴 Overdue</button>
-    <button class="pill cur" data-f="status" data-v="NOT_OVERDUE">🟢 Not Yet Due</button>
+    <button class="pill snoozed" id="fu-snoozed-pill" onclick="FU.toggleSnoozed(this)">🔕 Snoozed <span class="fu-count" id="fu-snoozed-count">(0)</span></button>
   </div>
   <div class="filter-row">
     <button class="pill active all" data-f="co" data-v="ALL">All Companies</button>
@@ -232,9 +246,31 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <button class="pill nat" data-f="co" data-v="NATIONAL">National</button>
   </div>
   <div class="filter-row">
-    <button class="pill active seg" data-f="seg" data-v="NORMAL">Normal only</button>
-    <button class="pill seg"        data-f="seg" data-v="SISTER">+ Sister cos.</button>
-    <button class="pill seg"        data-f="seg" data-v="ALL">Show all</button>
+    <div class="dd-wrap">
+      <button class="dd-trigger" id="dd-status-trigger" onclick="FU.toggleDD('status', event)">
+        <span id="dd-status-label">Status: All</span><span class="caret">▼</span>
+      </button>
+      <div class="dd-menu" id="dd-status-menu">
+        <button class="dd-item selected" data-f="status" data-v="ALL" data-label="All">All</button>
+        <button class="dd-item" data-f="status" data-v="OVERDUE" data-label="🔴 Overdue">🔴 Overdue</button>
+        <button class="dd-item" data-f="status" data-v="NOT_OVERDUE" data-label="🟢 Not Yet Due">🟢 Not Yet Due</button>
+      </div>
+    </div>
+    <div class="dd-wrap">
+      <button class="dd-trigger" id="dd-more-trigger" onclick="FU.toggleDD('more', event)">
+        <span id="dd-more-label">More</span><span class="caret">▼</span>
+      </button>
+      <div class="dd-menu" id="dd-more-menu" style="min-width:210px">
+        <div class="dd-section">Views</div>
+        <button class="dd-item" id="dd-pdc-item" onclick="FU.togglePDC(this); FU.closeDD('more')">💳 PDC on hand</button>
+        <button class="dd-item" id="dd-collect-item" onclick="FU.toggleCollect(this); FU.closeDD('more')">📬 Collect <span class="ddi-count" id="dd-collect-count">(0)</span></button>
+        <div class="dd-divider"></div>
+        <div class="dd-section">Segment</div>
+        <button class="dd-item selected" data-f="seg" data-v="NORMAL" data-label="Normal only">Normal only</button>
+        <button class="dd-item" data-f="seg" data-v="SISTER" data-label="+ Sister cos.">+ Sister cos.</button>
+        <button class="dd-item" data-f="seg" data-v="ALL" data-label="Show all">Show all</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -766,6 +802,7 @@ window.FU = (function(){
   let staleActive = false, staleSet = null;
   let pdcActive = false;
   let collectActive = false, collectSet = null;
+  let snoozedActive = false, snoozedSet = null;
 
   function pickOp(){
     if(op) return;
@@ -809,6 +846,7 @@ window.FU = (function(){
     }catch(e){ console.warn('Bridge fetch failed', e); }
     refreshStaleCount();
     refreshCollectCount();
+    refreshSnoozedCount();
     decorate();
   }
 
@@ -830,7 +868,25 @@ window.FU = (function(){
     return rows[0] || null;
   }
 
-  function eligible(){
+  function lastRealContactFor(name){
+    if(!name) return null;
+    const n = name.toLowerCase().trim();
+    const rows = log.filter(e =>
+      (e.customer_name||'').toLowerCase().trim() === n &&
+      e.outcome !== 'snooze' && e.outcome !== 'unsnoozed'
+    ).sort((a,b) => (b.timestamp_iso||'').localeCompare(a.timestamp_iso||''));
+    return rows[0] || null;
+  }
+
+  function isSnoozedUntil(name){
+    const l = lastFor(name);
+    if(!l || !l.promise_date || l.outcome === 'paid' || l.outcome === 'unsnoozed') return null;
+    const pd = new Date(l.promise_date + 'T00:00:00');
+    if(isNaN(pd) || pd <= new Date()) return null;
+    return pd;
+  }
+
+  function eligibleAll(){
     return (window.D || []).filter(d => {
       if(d.sg !== 'NORMAL') return false;
       if(d.cp_ov <= 0) return false;
@@ -840,14 +896,18 @@ window.FU = (function(){
     });
   }
 
+  function eligible(){
+    return eligibleAll().filter(d => !isSnoozedUntil(d.n));
+  }
+
   function computeT5(){
     const today = new Date();
     const scored = eligible().map(d => {
       const l = lastFor(d.n);
       let score = d.cp_ov * 1.0;
-      if(l && l.promise_date){
+      if(l && l.promise_date && l.outcome === 'will_pay'){
         const pd = new Date(l.promise_date);
-        if(!isNaN(pd) && pd < today && l.outcome !== 'paid') score *= 2.5;
+        if(!isNaN(pd) && pd < today) score *= 2.5;
       }
       if(l && l.timestamp_iso){
         const ago = (today - new Date(l.timestamp_iso)) / (1000*60*60*24);
@@ -863,10 +923,14 @@ window.FU = (function(){
   function computeStale(){
     const cutoff = new Date(Date.now() - STALE_DAYS*24*60*60*1000);
     return new Set(eligible().filter(d => {
-      const l = lastFor(d.n);
-      if(!l) return true; // never touched
+      const l = lastRealContactFor(d.n);
+      if(!l) return true;
       return new Date(l.timestamp_iso) < cutoff;
     }).map(d => d.n));
+  }
+
+  function computeSnoozed(){
+    return new Set(eligibleAll().filter(d => isSnoozedUntil(d.n)).map(d => d.n));
   }
 
   function computeCollect(){
@@ -883,8 +947,16 @@ window.FU = (function(){
   }
 
   function refreshCollectCount(){
+    const n = computeCollect().size;
     const c = document.getElementById('fu-collect-count');
-    if(c){ c.textContent = '(' + computeCollect().size + ')'; }
+    if(c){ c.textContent = '(' + n + ')'; }
+    const dc = document.getElementById('dd-collect-count');
+    if(dc){ dc.textContent = '(' + n + ')'; }
+  }
+
+  function refreshSnoozedCount(){
+    const c = document.getElementById('fu-snoozed-count');
+    if(c){ c.textContent = '(' + computeSnoozed().size + ')'; }
   }
 
   function refreshStaleCount(){
@@ -904,6 +976,10 @@ window.FU = (function(){
       document.getElementById('root').style.display = '';
       document.getElementById('pdc-panel').style.display = 'none';
       const bot = document.querySelector('.bot'); if(bot) bot.style.display = '';
+    }
+    if(snoozedActive){
+      snoozedActive = false; snoozedSet = null;
+      const sp = document.getElementById('fu-snoozed-pill'); if(sp) sp.classList.remove('active');
     }
     if(collectActive){
       collectActive = false; collectSet = null;
@@ -931,8 +1007,36 @@ window.FU = (function(){
     setTimeout(applyFilters, 50);
   }
 
+  function toggleSnoozed(btn){
+    const wasActive = snoozedActive;
+    exitViews();
+    if(!wasActive){
+      snoozedActive = true; snoozedSet = computeSnoozed(); btn.classList.add('active');
+    }
+    if(window.render) window.render();
+    setTimeout(applyFilters, 50);
+  }
+
+  function unsnooze(name){
+    if(!name) return;
+    if(!confirm('Unsnooze ' + name + ' — bring back into the active list now?')) return;
+    const entry = {
+      timestamp_iso: new Date().toISOString(),
+      customer_name: name, operator: op, channel: '',
+      action: 'unsnooze', outcome: 'unsnoozed',
+      promise_date: '', amount_omr: '', notes: ''
+    };
+    fetch(BRIDGE, { method:'POST', headers:{'Content-Type':'text/plain;charset=UTF-8'}, body: JSON.stringify(entry) })
+      .catch(()=>{});
+    log.unshift(entry);
+    refreshStaleCount(); refreshCollectCount(); refreshSnoozedCount();
+    if(snoozedActive){ snoozedSet = computeSnoozed(); }
+    if(window.render) window.render();
+    setTimeout(()=>{ if(snoozedActive) applyFilters(); decorate(); }, 50);
+  }
+
   function applyFilters(){
-    const activeSet = t5Active ? t5Set : (staleActive ? staleSet : (collectActive ? collectSet : null));
+    const activeSet = t5Active ? t5Set : (staleActive ? staleSet : (snoozedActive ? snoozedSet : (collectActive ? collectSet : null)));
     if(!activeSet) return;
     document.querySelectorAll('.card').forEach(card => {
       const nameEl = card.querySelector('.card-name'); if(!nameEl) return;
@@ -960,18 +1064,30 @@ window.FU = (function(){
       const l = lastFor(name);
       const left = card.querySelector('.card-left');
       const oldDec = left.querySelector('.fu-last'); if(oldDec) oldDec.remove();
+      const oldSnz = left.querySelector('.fu-snooze-chip'); if(oldSnz) oldSnz.remove();
+
+      const snoozeUntil = isSnoozedUntil(name);
+      if(snoozeUntil){
+        const snz = document.createElement('div');
+        snz.className = 'fu-snooze-chip';
+        const isPromise = l && l.outcome === 'will_pay';
+        snz.textContent = (isPromise ? '⏳ Promised by ' : '🔕 Snoozed until ') + fmtDate(l.promise_date);
+        left.appendChild(snz);
+      }
       if(l){
         const when = fmtDate(l.timestamp_iso);
         const who = l.operator || '?';
         const out = (l.outcome || l.action || 'contacted').replace(/_/g,' ');
         let broken = false, isStale = false, promiseText = '';
-        if(l.promise_date){
+        if(l.promise_date && l.outcome === 'will_pay'){
           const pd = new Date(l.promise_date);
-          if(!isNaN(pd) && pd < new Date() && l.outcome !== 'paid'){
+          if(!isNaN(pd) && pd < new Date()){
             broken = true; promiseText = ` · ⚠ promised ${fmtDate(l.promise_date)} — didn't`;
           } else if(!isNaN(pd)){ promiseText = ` · promised ${fmtDate(l.promise_date)}`; }
         }
-        if(new Date(l.timestamp_iso).getTime() < cutoff) isStale = true;
+        const lr = lastRealContactFor(name);
+        if(lr && new Date(lr.timestamp_iso).getTime() < cutoff && !snoozeUntil) isStale = true;
+        if(!lr && !snoozeUntil) isStale = true;
         const div = document.createElement('div');
         let cls = 'fu-last';
         if(broken) cls += ' broken';
@@ -1007,6 +1123,14 @@ window.FU = (function(){
         pc.textContent = '📬 PDC ready to collect';
         const cardLeft = card.querySelector('.card-left'); if(cardLeft) cardLeft.appendChild(pc);
       }
+      const oldUb = actionBtns.querySelector('.fu-unsnooze-btn'); if(oldUb) oldUb.remove();
+      if(snoozeUntil){
+        const ub = document.createElement('button');
+        ub.className = 'fu-unsnooze-btn';
+        ub.textContent = '🔓 Unsnooze now';
+        ub.onclick = (ev) => { ev.stopPropagation(); FU.unsnooze(name); };
+        actionBtns.appendChild(ub);
+      }
       const oldCb = actionBtns.querySelector('.fu-pdc-collect-btn'); if(oldCb) oldCb.remove();
       if(collectActive && collectSet && collectSet.has(name)){
         const cb = document.createElement('button');
@@ -1021,7 +1145,7 @@ window.FU = (function(){
         actionBtns.appendChild(hb);
       }
     });
-    if(t5Active || staleActive) applyFilters();
+    if(t5Active || staleActive || snoozedActive || collectActive) applyFilters();
   }
 
   let _ls = { action:'', outcome:'' };
@@ -1042,6 +1166,7 @@ window.FU = (function(){
           <button class="fu-out" data-a="payment_received" data-o="paid">💵 Paid — please update Tally</button>
           <button class="fu-out" data-a="pdc_noted" data-o="pdc_ready">📬 PDC ready — needs collection</button>
           <button class="fu-out" data-a="pdc_noted" data-o="pdc_collected">✅ PDC collected</button>
+          <button class="fu-out" data-a="snooze" data-o="snooze">🔕 No action — check back in…</button>
         </div>
         <div id="fu-pdc-amount-row" style="display:none;margin-top:12px">
           <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Cheque amount — leave blank if unknown</label>
@@ -1050,6 +1175,19 @@ window.FU = (function(){
         <div id="fu-promise-row" style="display:none;margin-top:12px">
           <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Promised pay date</label>
           <input type="date" id="fu-promise" class="fu-input">
+        </div>
+        <div id="fu-snooze-row" style="display:none;margin-top:12px">
+          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px">Snooze for…</label>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">
+            <button type="button" class="fu-snooze-preset" data-days="3">3 days</button>
+            <button type="button" class="fu-snooze-preset" data-days="7">7 days</button>
+            <button type="button" class="fu-snooze-preset" data-days="14">14 days</button>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="number" id="fu-snooze-days" class="fu-input" placeholder="Custom days" min="1" max="365" style="flex:1;margin-top:0">
+            <span style="font-size:10px;color:var(--muted)">OR</span>
+            <input type="date" id="fu-snooze-date" class="fu-input" style="flex:1;margin-top:0">
+          </div>
         </div>
         <textarea id="fu-notes" class="fu-input" placeholder="Notes (optional)" style="margin-top:10px;min-height:54px;resize:vertical"></textarea>
         <div style="display:flex;gap:8px;margin-top:14px">
@@ -1065,9 +1203,23 @@ window.FU = (function(){
         _ls.action = b.dataset.a; _ls.outcome = b.dataset.o;
         document.getElementById('fu-promise-row').style.display = (b.dataset.o === 'will_pay') ? 'block' : 'none';
         document.getElementById('fu-pdc-amount-row').style.display = (b.dataset.o === 'pdc_ready') ? 'block' : 'none';
+        document.getElementById('fu-snooze-row').style.display = (b.dataset.o === 'snooze') ? 'block' : 'none';
         const sv = document.getElementById('fu-save'); sv.disabled = false;
       });
     });
+    // snooze preset chip selection
+    m.querySelectorAll('.fu-snooze-preset').forEach(b => {
+      b.addEventListener('click', () => {
+        m.querySelectorAll('.fu-snooze-preset').forEach(x => x.classList.remove('selected'));
+        b.classList.add('selected');
+        document.getElementById('fu-snooze-days').value = b.dataset.days;
+        document.getElementById('fu-snooze-date').value = '';
+      });
+    });
+    const sdays = document.getElementById('fu-snooze-days');
+    const sdate = document.getElementById('fu-snooze-date');
+    if(sdays){ sdays.addEventListener('input', () => { m.querySelectorAll('.fu-snooze-preset').forEach(x => x.classList.remove('selected')); if(sdate) sdate.value = ''; }); }
+    if(sdate){ sdate.addEventListener('change', () => { m.querySelectorAll('.fu-snooze-preset').forEach(x => x.classList.remove('selected')); if(sdays) sdays.value = ''; }); }
     document.getElementById('fu-save').onclick = () => saveLog(name);
     if(preOutcome){
       const pb = m.querySelector('[data-o="'+preOutcome+'"]');
@@ -1079,17 +1231,31 @@ window.FU = (function(){
   async function saveLog(name){
     const sv = document.getElementById('fu-save'); if(!sv || sv.disabled) return;
     sv.textContent = 'Saving…'; sv.disabled = true;
+    let pDate = document.getElementById('fu-promise') ? document.getElementById('fu-promise').value : '';
+    if(_ls.outcome === 'snooze'){
+      const sd = document.getElementById('fu-snooze-date');
+      const sdays = document.getElementById('fu-snooze-days');
+      if(sd && sd.value){ pDate = sd.value; }
+      else if(sdays && sdays.value && parseInt(sdays.value) > 0){
+        const t = new Date(); t.setDate(t.getDate() + parseInt(sdays.value));
+        pDate = t.toISOString().slice(0,10);
+      }
+    }
+    if(_ls.outcome === 'snooze' && !pDate){
+      sv.textContent = 'Pick days or date'; sv.disabled = false;
+      return;
+    }
     const entry = {
       timestamp_iso: new Date().toISOString(),
       customer_name: name, operator: op, channel: '',
       action: _ls.action, outcome: _ls.outcome,
-      promise_date: document.getElementById('fu-promise') ? document.getElementById('fu-promise').value : '',
+      promise_date: pDate,
       amount_omr: (document.getElementById('fu-pdc-amount') ? document.getElementById('fu-pdc-amount').value.trim() : ''),
       notes: document.getElementById('fu-notes') ? document.getElementById('fu-notes').value : ''
     };
     try{
       await fetch(BRIDGE, { method:'POST', headers:{'Content-Type':'text/plain;charset=UTF-8'}, body: JSON.stringify(entry) });
-      log.unshift(entry); closeLog(); refreshStaleCount(); refreshCollectCount(); decorate();
+      log.unshift(entry); closeLog(); refreshStaleCount(); refreshCollectCount(); refreshSnoozedCount(); decorate();
       if(entry.outcome === 'pdc_ready'){
         const dObj = (window.D||[]).find(x => x.n === name);
         const coName = dObj && window.CO && window.CO[dObj.co] ? window.CO[dObj.co].name : '';
@@ -1106,6 +1272,7 @@ window.FU = (function(){
 
   function boot(){
     pickOp(); renderOpChip(); fetchLog();
+    refreshSnoozedCount();
     // auto-activate stale view on Sundays (day 0)
     if(new Date().getDay() === 0){
       setTimeout(() => {
@@ -1271,7 +1438,46 @@ window.FU = (function(){
     setTimeout(applyFilters, 50);
   }
 
-  return { setOp, changeOp, openLog, closeLog, saveLog, toggleT5, toggleStale, exitViews, openHistory, togglePDC, toggleCollect };
+    function toggleDD(which, ev){
+    if(ev) ev.stopPropagation();
+    const menu = document.getElementById('dd-' + which + '-menu');
+    if(!menu) return;
+    document.querySelectorAll('.dd-menu').forEach(m => { if(m !== menu) m.classList.remove('open'); });
+    menu.classList.toggle('open');
+  }
+  function closeDD(which){
+    const menu = document.getElementById('dd-' + which + '-menu');
+    if(menu) menu.classList.remove('open');
+  }
+  document.addEventListener('click', (e) => {
+    if(!e.target.closest('.dd-wrap')){
+      document.querySelectorAll('.dd-menu').forEach(m => m.classList.remove('open'));
+    }
+  });
+  document.addEventListener('click', (e) => {
+    const it = e.target.closest('.dd-item[data-f]');
+    if(!it) return;
+    const f = it.dataset.f;
+    const lbl = it.dataset.label || it.textContent.trim();
+    if(f === 'status'){
+      const t = document.getElementById('dd-status-label');
+      if(t) t.textContent = 'Status: ' + lbl;
+      const tr = document.getElementById('dd-status-trigger');
+      if(tr) tr.classList.toggle('active', it.dataset.v !== 'ALL');
+      document.querySelectorAll('#dd-status-menu .dd-item').forEach(x => x.classList.remove('selected'));
+      it.classList.add('selected');
+      closeDD('status');
+    } else if(f === 'seg'){
+      const isAll = it.dataset.v === 'NORMAL';
+      const tr = document.getElementById('dd-more-trigger');
+      if(tr) tr.classList.toggle('active', !isAll);
+      document.querySelectorAll('#dd-more-menu .dd-item[data-f="seg"]').forEach(x => x.classList.remove('selected'));
+      it.classList.add('selected');
+      closeDD('more');
+    }
+  });
+
+  return { setOp, changeOp, openLog, closeLog, saveLog, toggleT5, toggleStale, toggleSnoozed, exitViews, openHistory, togglePDC, toggleCollect, toggleDD, closeDD, unsnooze };
 })();
 </script>
 
