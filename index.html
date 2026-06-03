@@ -50,6 +50,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .hdr-title span{color:var(--muted);font-weight:400;font-size:12px;margin-left:5px}
 .updated{font-size:10px;color:var(--muted)}
 .filter-row{display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;margin-bottom:6px}
+.filter-row-dd{display:flex;gap:8px;margin-bottom:6px;overflow:visible;position:relative}
 .filter-row::-webkit-scrollbar{display:none}
 .pill{flex-shrink:0;border:1px solid var(--border);background:var(--card);color:var(--muted);border-radius:20px;padding:5px 12px;font-size:11px;cursor:pointer;white-space:nowrap;font-family:inherit;font-weight:500;transition:all 0.15s}
 .pill:hover{border-color:var(--text)}
@@ -74,11 +75,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .pill.snoozed.active{background:#7B4E8C;color:#fff;border-color:#7B4E8C}
 .fu-snooze-chip{font-size:10px;font-weight:700;color:#7B4E8C;background:rgba(123,78,140,0.13);border-radius:20px;padding:2px 8px;margin-top:4px;display:inline-block}
 .fu-promise-chip{font-size:10px;font-weight:700;color:#92400E;background:rgba(146,64,14,0.10);border-radius:20px;padding:2px 8px;margin-top:4px;display:inline-block}
-.dd-wrap{position:relative;display:inline-block}
-.dd-trigger{font-size:12px;font-weight:600;padding:7px 12px;border-radius:20px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.dd-wrap{position:relative;display:inline-block;z-index:auto}
+.dd-trigger{font-size:12px;font-weight:600;padding:9px 14px;border-radius:20px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;-webkit-tap-highlight-color:rgba(0,0,0,0.05);touch-action:manipulation}
 .dd-trigger.active{background:var(--text);color:var(--card);border-color:var(--text)}
 .dd-trigger .caret{font-size:8px;opacity:0.7}
-.dd-menu{position:absolute;top:calc(100% + 4px);left:0;background:var(--card);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.15);min-width:180px;z-index:200;display:none;padding:6px}
+.dd-menu{position:absolute;top:calc(100% + 4px);left:0;background:var(--card);border:1px solid var(--border);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.18);min-width:180px;z-index:9999;display:none;padding:6px;max-height:70vh;overflow-y:auto}
 .dd-menu.open{display:block}
 .dd-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;font-size:12px;font-weight:500;color:var(--text);background:transparent;border:none;border-radius:6px;cursor:pointer;width:100%;text-align:left;white-space:nowrap}
 .dd-item:hover{background:var(--soft)}
@@ -246,7 +247,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <button class="pill az"  data-f="co" data-v="AZAIBA">Azaiba</button>
     <button class="pill nat" data-f="co" data-v="NATIONAL">National</button>
   </div>
-  <div class="filter-row">
+  <div class="filter-row-dd">
     <div class="dd-wrap">
       <button class="dd-trigger" id="dd-status-trigger" onclick="FU.toggleDD('status', event)">
         <span id="dd-status-label">Status: All</span><span class="caret">▼</span>
