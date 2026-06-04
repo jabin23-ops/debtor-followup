@@ -246,6 +246,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <button class="pill active all" data-f="co" data-v="ALL">All Companies</button>
     <button class="pill az"  data-f="co" data-v="AZAIBA">Azaiba</button>
     <button class="pill nat" data-f="co" data-v="NATIONAL">National</button>
+    <button class="pill collect" id="fu-collect-pill" onclick="FU.toggleCollect(this)">📬 Collect <span class="fu-count" id="fu-collect-count">(0)</span></button>
   </div>
   <div class="filter-row-dd">
     <div class="dd-wrap">
@@ -265,7 +266,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <div class="dd-menu" id="dd-more-menu" style="min-width:210px">
         <div class="dd-section">Views</div>
         <button class="dd-item" id="dd-pdc-item" onclick="FU.togglePDC(this); FU.closeDD('more')">💳 PDC on hand</button>
-        <button class="dd-item" id="dd-collect-item" onclick="FU.toggleCollect(this); FU.closeDD('more')">📬 Collect <span class="ddi-count" id="dd-collect-count">(0)</span></button>
         <div class="dd-divider"></div>
         <div class="dd-section">Segment</div>
         <button class="dd-item selected" data-f="seg" data-v="NORMAL" data-label="Normal only">Normal only</button>
